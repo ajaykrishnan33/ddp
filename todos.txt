@@ -1,0 +1,12 @@
+IRGAN model will accept the recipe steps (text context)  + images (with one of the choices replacing the empty placeholder) as input 
+
+1. Modify the "Visual Cloze" dataset as follows:
+	a. Every question to be modified so that it is always trying to predict the last of a sequence of images.
+	b. The choice_list for every question to be expanded to around 20 (configurable) images.
+	c. The choice_list to be shuffled so that the corerct "answer" value is uniformly in the range [0, MAX_CHOICES).
+
+2. Create vocabulary file from context words. Remove special chars? 
+
+
+1. Implement LSTM/GRU/RNN model for text context.
+2. IRGAN model
