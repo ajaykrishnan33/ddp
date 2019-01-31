@@ -8,5 +8,76 @@ IRGAN model will accept the recipe steps (text context)  + images (with one of t
 2. Create vocabulary file from context words. Remove special chars? 
 
 
-1. Implement LSTM/GRU/RNN model for text context.
-2. IRGAN model
+3. Doc2Vec for paragraph encoding
+	- Train doc2vec model separately on sentences from the training data : pre-training
+		- Also need to repeat this for the validation data, but separately from the training data. This is okay since this pre-training is unsupervised anyway. These embedding vectors will only be used 
+	- Currently, all periods have been stripped. All contexts form one long meaningless sentence. Should I add the period back? Then will have to modify the doc2vec model to stop picking n-grams at each period.
+	- The output will finally be a 100-d vector for every document.	This can be used as the initial weights for the embedding layer in the actual model. 
+	- Will have to write code to read the generated docvectors and initialize embedding weights. The generator and discriminator models will do this.
+	- Problem: The embedding weights cannot be trained any further since they will not include documents present only in the validation set. Rather, allowing the embedding weights to be trained will only result in the training loss reducing but at validation time, since the embedding weights will be completely swapped out with the document vectors for the validation docs, the additional training will be completely useless here and is likely to give poor results.
+
+4. Word2Vec + RNN for paragraph encoding
+	- First problem: total of more than 9000 words in the vocabulary. This was after reducing the vocab size from 42000 - around 33000 words had frequency of less than 10. These were discarded.
+	- Second problem: some context bodies have more than 2000 words. Need to get exact statistics on this. This means that the vector sizes for the context bodies have to be large. Not sure how much of a problem this really is.
+	- Due to the large number of words per context body, will make sense to use LSTMs or GRUs for encoding the words.
+
+5. Image encoding
+	- VGGNet/AlexNet
+		- Transform all images to size required by the chosen model.
+		- The model can be initialized with pre-trained weights and trained further.
+
+6. Generator
+	- Will first
+		- encode the context vectors using doc2vec/(word2vec+RNN) embeddings.
+		- encode the question images using AlexNet/VGGNet
+			- encode each image into a 4096 dimension vector using VGG16
+			- Two choices from here:
+				- Use an RNN to encode the set of vgg encodings of the images
+					- Advantage: No assumptions about number of images in each data item
+					- Disadvantage: Loss of information
+				- Concatenate the vgg encodings of the images
+					- Advantage: Full info preserved
+					- Disadvantage: Assumption about number of images in each data item
+			- Going to choose option 1 here
+		- pass the encoding of the context vectors to an RNN and the question images to another RNN and concatenate the two outputs to form the doc encoding.
+	- Next, for a given image choice, it will:
+		- encode the image choice using the same model as above.
+		- compute the cosine similarity between the doc encoding and the choice encoding as a single numeric score.
+		- alternately, the cosine similarity function can be replaced by a weighted model that outputs a single numeric score
+	- The numeric score will represent the likelihood of the choice being the correct answer to the visual cloze question.
+
+	Pre-training the Generator,
+		- We will ultimately get a whole of vector of numeric scores - one for every choice. (This can be computed in parallel?).
+		- Then apply a softmax on this vector to get a probability distribution over the choice list.
+		- This probability distribution is compared against the one-hot vector for the true answer to compute the loss for the generator model.
+
+7. Discriminator
+	- Will first
+		- encode the context vectors using doc2vec/(word2vec+RNN) embeddings.
+		- encode the question images using AlexNet/VGGNet
+		- pass the encoding of the context vectors to an RNN and the question images to another RNN and concatenate the two outputs to form the doc encoding.
+	- Next, for a given image choice, it will:
+		- encode the image choice using the same model as above.
+		- compute the cosine similarity between the doc encoding and the choice encoding as a single numeric score.
+		- alternately, the cosine similarity function can be replaced by a weighted model that outputs a single numeric score
+	- The numeric score will represent the likelihood of the choice being the correct answer to the visual cloze question.
+
+	Pre-training the Discriminator,
+		- Apply the sigmoid function to the output numeric score to get a value in the [0-1] range. This will make it look like a probability score.
+		- For every image choice, we have a 0-1 label indicating whether it really is the correct answer. Use this to compute the loss for the discriminator model.
+
+8. Adversarial Training
+	For E epochs:
+		For g steps:
+			- First the Discriminator is assumed to be fixed and the Generator is trained.
+			- The Generator will take in an input doc - consisting of a list of context bodies, question images and choice images as input and generate a probability distribution of relevance over the choice list.
+			- A set of K images will be sampled from the choice list using this probability distribution, and passed through the discriminator along with the input doc. The Generator's image choices should be such that the Discriminator is fooled into thinking that the images are indeed relevant and hence must have an output label of 1. If the Discriminator is not fooled, then the Generator is penalized and must update its weights.
+		For d steps:
+			- Now, the Generator is assumed to be fixed and the Discriminator is trained.
+			- The Generator is used to generate N sample images for the input doc. These images must be classified by the Discriminator as irrelevant. These images are combined with the positive sample from the input doc and passed through the Discriminator.
+			- The Discriminator accrues a loss for every misclassified image and its weights are updated using this loss.
+		Validation loss is computed here.
+
+
+
+

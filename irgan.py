@@ -1,6 +1,7 @@
 import argparse
 import os
 import torch
+import torchvision
 import torch.nn as nn
 from   torch.utils.data import Dataset
 import ujson
@@ -45,27 +46,96 @@ def load_vocabulary():
             vocab[str(w).strip()] = i
         return vocab
 
-class Generator(nn.Module):
-    def __init__(self):
-        pass
+class Doc2Vec:
+    def __init__(self, embeddings_file_path):
+        self.embeddings = np.loadtxt(embeddings_file_path, delimiter=",")
 
-    def forward(self, input):
-        pass
+    def get_vectors(self, indices):
+        return self.embeddings[indices]
 
-class Discriminator(nn.Module):
+class BaseNetwork(nn.Module):
     def __init__(self):
-        pass
+
+        img_encoder = torchvision.models.vgg16_bn(pretrained=True)
+
+        img_encoder.classifier = nn.Sequential(*list(model.classifier)[:4]) 
+
+        self.question_img_encoder = img_encoder   # final size will be 4096
+
+        self.question_encoder = nn.GRU(  # for encoding the 4 question images together
+            input_size=4096,   # img_encoder output size 
+            hidden_size=4096,
+            num_layers=1,
+            batch_first=True
+        )
+
+        self.context_encoder = nn.GRU(   # for encoding the context vectors together
+            input_size=100,    # doc2vec embedding size
+            hidden_size=100,
+            num_layers=1,
+            batch_first=True
+        )
+
+        # the outputs of the two encoders above will be concatenated together
+
+        img_encoder = torchvision.models.vgg16_bn(pretrained=True)
+
+        img_encoder.classifier = nn.Sequential(*list(model.classifier)[:4]) 
+
+        self.choice_img_encoder = img_encoder
+
+
+
+class Generator(BaseNetwork):
+
+    def forward(self, input_data):
+        questions = torch.tensor([ x["question"] for x in input_data ])  # batch of question arrays
+
+        questions_temp = questions.view(-1, *questions.shape[2:])
+
+        encoded_questions_temp = self.question_img_encoder(questions_temp)
+
+        encoded_questions_single = encoded_questions_temp.view(
+            *questions.shape[:2], 
+            *encoded_questions_temp.shape[1:]
+        )
+
+        encoded_questions_seq = self.question_encoder(encoded_questions_single)
+
+        contexts = torch.tensor([ x["context"] for x in input_data ]) # batch of context vector sets
+
+        encoded_contexts = self.context_encoder(contexts)
+
+        choices = torch.tensor([ x["choice_list"] for x in input_data ])  # batch of "choice_list"s
+
+        choices_temp = choices.view(-1, *choices.shape[2:])
+
+        encoded_choices_temp = self.choice_img_encoder(choices_temp)
+
+        encoded_choices = encoded_choices_temp.view(
+            *choices.shape[:2],
+            *encoded_choices_temp.shape[1:]
+        )
+
+        
+
+
+
+
+
+class Discriminator(BaseNetwork):
 
     def forward(self, input):
         pass
 
 class RecipeQADataset(Dataset):
     
-    def __init__(self, csv_file, root_dir, transform=None):
+    def __init__(self, csv_file, root_dir, embeddings, transform=None):
         self.data_list = ujson.load(open(csv_file, "r"))
         self.root_dir = root_dir
         self.transform = transform
-        self.vocab = load_vocabulary()
+        self.embeddings = embeddings
+        # self.vocab = load_vocabulary()
 
     def __len__(self):
         return len(self.data_list)
@@ -74,11 +144,17 @@ class RecipeQADataset(Dataset):
         ret = {}
         data_item = self.data_list[idx]
 
-        ret["context"] = [
-            [
-                self.vocab[word] for word in c_item["cleaned_body"].split()
-            ] for c_item in data_item["context"]
+        # ret["context"] = [
+        #     [
+        #         self.vocab[word] for word in c_item["cleaned_body"].split()
+        #     ] for c_item in data_item["context"]
+        # ]
+
+        document_ids = [
+            data_item["context_base_id"] + i for _, i in enumerate(data_item["context"])
         ]
+
+        ret["context"] = self.embeddings.get_vectors(document_ids)
 
         ret["choice_list"] = [
             io.imread(os.path.join(self.root_dir, img)) for img in data_item["choice_list"]
@@ -93,14 +169,53 @@ class RecipeQADataset(Dataset):
 
         return ret
 
+class RescaleToTensorAndNormalize(object):
 
-train_dataset = RecipeQADataset("recipeqa/new_train_cleaned.json", "recipeqa/images/train/images-qa")
+    def __init__(self, output_size):
+        self.output_size = output_size
+
+    def __call__(self, sample):
+
+        normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+
+        sample["choice_list"] = [
+            normalize(torch.from_numpy(transform.resize(img, (output_size, output_size)).transpose((2,0,1))))
+            for img in sample["choice_list"]
+        ]
+
+        sample["question"] = [
+            normalize(torch.from_numpy(transform.resize(img, (output_size, output_size)).transpose((2,0,1))))
+            for img in sample["question"]   
+        ]
+
+        return sample
+
+
+train_embeddings = Doc2Vec(
+    "paragraph-vectors/data/sentences_train_model.dbow_numnoisewords\
+    .2_vecdim.100_batchsize.32_lr.0.001000_epoch.100_loss.0.781092.csv"
+)
+train_dataset = RecipeQADataset(
+    "recipeqa/new_train_cleaned.json", 
+    "recipeqa/images/train/images-qa",
+    train_embeddings,
+    transform = RescaleToTensorAndNormalize(224)
+)
 train_dataloader = torch.utils.data.DataLoader(
     train_dataset, batch_size=opt.batchSize,
     shuffle=True, num_workers=int(opt.workers)
 )
 
-val_dataset = RecipeQADataset("recipeqa/new_val_cleaned.json", "recipeqa/images/val/images-qa")
+val_embeddings = Doc2Vec(
+    "paragraph-vectors/data/sentences_train_model.dbow_numnoisewords\
+    .2_vecdim.100_batchsize.32_lr.0.001000_epoch.100_loss.0.781092.csv"
+)  # change this to val
+val_dataset = RecipeQADataset(
+    "recipeqa/new_val_cleaned.json", 
+    "recipeqa/images/val/images-qa", 
+    val_embeddings,
+    transform = RescaleToTensorAndNormalize(224)
+)
 val_dataloader = torch.utils.data.DataLoader(
     val_dataset, batch_size=opt.batchSize,
     shuffle=True, num_workers=int(opt.workers)
