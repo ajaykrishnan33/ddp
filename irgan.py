@@ -51,7 +51,7 @@ def load_vocabulary():
 
 class Doc2Vec:
     def __init__(self, embeddings_file_path):
-        self.embeddings = np.loadtxt(embeddings_file_path, delimiter=",")
+        self.embeddings = np.loadtxt(embeddings_file_path, delimiter=",", skiprows=1)
 
     def get_vectors(self, indices):
         return self.embeddings[indices]
