@@ -4,6 +4,7 @@ import torch
 import torchvision
 import torch.nn as nn
 from   torch.utils.data import Dataset
+import torch.optim as optim
 import random
 import numpy as np
 import ujson
