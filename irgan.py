@@ -282,6 +282,7 @@ class RescaleToTensorAndNormalize(object):
                     print("Greyscale instead of color")
                     img = np.stack((img,)*3, axis=0)
                 else:
+                    print("Error:", img.shape)
                     raise e
             img = torch.from_numpy(img)
             img = normalize(img)
