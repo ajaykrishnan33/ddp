@@ -10,6 +10,8 @@ import random
 import numpy as np
 import ujson
 from skimage import io, transform
+import torch.multiprocessing
+torch.multiprocessing.set_sharing_strategy('file_system')
 
 parser = argparse.ArgumentParser()
 # parser.add_argument('--dataroot', required=True, help='path to dataset')
@@ -264,10 +266,21 @@ class RescaleToTensorAndNormalize(object):
 
         normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 
-        sample["choice_list"] = [
-            normalize(torch.from_numpy(transform.resize(img, (self.output_size, self.output_size)).transpose((2,0,1))))
-            for img in sample["choice_list"]
-        ]
+        # sample["choice_list"] = [
+        #     normalize(torch.from_numpy(transform.resize(img, (self.output_size, self.output_size)).transpose((2,0,1))))
+        #     for img in sample["choice_list"]
+        # ]
+
+        # sample["choice_list"] = []
+        temp_choice_list = []
+        for img in sample["choice_list"]:
+            img = transform.resize(img, (self.output_size, self.output_size))
+            img = img.transpose((2,0,1))
+            img = torch.from_numpy(img)
+            img = normalize(img)
+            temp_choice_list.append(img)
+
+        sample["choice_list"] = temp_choice_list
 
         sample["question"] = [
             normalize(torch.from_numpy(transform.resize(img, (self.output_size, self.output_size)).transpose((2,0,1))))
