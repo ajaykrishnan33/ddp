@@ -282,10 +282,20 @@ class RescaleToTensorAndNormalize(object):
 
         sample["choice_list"] = temp_choice_list
 
-        sample["question"] = [
-            normalize(torch.from_numpy(transform.resize(img, (self.output_size, self.output_size)).transpose((2,0,1))))
-            for img in sample["question"]   
-        ]
+        # sample["question"] = [
+        #     normalize(torch.from_numpy(transform.resize(img, (self.output_size, self.output_size)).transpose((2,0,1))))
+        #     for img in sample["question"]   
+        # ]
+        
+        temp_question_list = []
+        for img in sample["question"]:
+            img = transform.resize(img, (self.output_size, self.output_size))
+            img = img.transpose((2,0,1))
+            img = torch.from_numpy(img)
+            img = normalize(img)
+            temp_question_list.append(img)
+
+        sample["question"] = temp_question_list
 
         return sample
 
