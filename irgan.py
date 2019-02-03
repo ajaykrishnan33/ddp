@@ -277,7 +277,7 @@ class RescaleToTensorAndNormalize(object):
             img = transform.resize(img, (self.output_size, self.output_size))
             try:
                 img = img.transpose((2,0,1))
-            except e:
+            except Exception as e:
                 print("Some error")
                 print(img.shape)
                 raise e
