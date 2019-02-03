@@ -286,7 +286,7 @@ class RescaleToTensorAndNormalize(object):
         #     normalize(torch.from_numpy(transform.resize(img, (self.output_size, self.output_size)).transpose((2,0,1))))
         #     for img in sample["question"]   
         # ]
-        
+
         temp_question_list = []
         for img in sample["question"]:
             img = transform.resize(img, (self.output_size, self.output_size))
@@ -315,7 +315,7 @@ def my_collate_fn(samples):
 
 train_dataloader = torch.utils.data.DataLoader(
     train_dataset, batch_size=opt.batchSize,
-    shuffle=True, num_workers=int(opt.workers),
+    shuffle=False, num_workers=int(opt.workers),
     collate_fn=my_collate_fn
 )
 
