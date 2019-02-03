@@ -298,7 +298,15 @@ class RescaleToTensorAndNormalize(object):
         temp_question_list = []
         for img in sample["question"]:
             img = transform.resize(img, (self.output_size, self.output_size))
-            img = img.transpose((2,0,1))
+            try:
+                img = img.transpose((2,0,1))
+            except Exception as e:
+                if img.shape==(self.output_size, self.output_size):
+                    print("Greyscale instead of color")
+                    img = np.stack((img,)*3, axis=0)
+                else:
+                    print("Error:", img.shape)
+                    raise e
             img = torch.from_numpy(img)
             img = normalize(img)
             temp_question_list.append(img)
