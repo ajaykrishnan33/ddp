@@ -265,12 +265,12 @@ class RescaleToTensorAndNormalize(object):
         normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 
         sample["choice_list"] = [
-            normalize(torch.from_numpy(transform.resize(img, (output_size, output_size)).transpose((2,0,1))))
+            normalize(torch.from_numpy(transform.resize(img, (self.output_size, self.output_size)).transpose((2,0,1))))
             for img in sample["choice_list"]
         ]
 
         sample["question"] = [
-            normalize(torch.from_numpy(transform.resize(img, (output_size, output_size)).transpose((2,0,1))))
+            normalize(torch.from_numpy(transform.resize(img, (self.output_size, self.output_size)).transpose((2,0,1))))
             for img in sample["question"]   
         ]
 
