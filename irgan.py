@@ -4,11 +4,13 @@ import torch
 import torchvision
 import torch.nn as nn
 from   torch.utils.data import Dataset
+import random
+import numpy as np
 import ujson
 from skimage import io, transform
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--dataroot', required=True, help='path to dataset')
+# parser.add_argument('--dataroot', required=True, help='path to dataset')
 parser.add_argument('--workers', type=int, help='number of data loading workers', default=2)
 parser.add_argument('--batchSize', type=int, default=64, help='input batch size')
 parser.add_argument('--imageSize', type=int, default=64, help='the height / width of the input image to network')
@@ -24,6 +26,7 @@ parser.add_argument('--netG', default='', help="path to netG (to continue traini
 parser.add_argument('--netD', default='', help="path to netD (to continue training)")
 parser.add_argument('--outf', default='.', help='folder to output images and model checkpoints')
 parser.add_argument('--manualSeed', type=int, help='manual seed')
+parser.add_argument('--vgg_pretrained', type=bool, help='vgg pretrained?', default=False)
 
 opt = parser.parse_args()
 print(opt)
@@ -55,16 +58,30 @@ class Doc2Vec:
 
 class BaseNetwork(nn.Module):
     def __init__(self):
+        super(BaseNetwork, self).__init__()
 
-        img_encoder = torchvision.models.vgg16_bn(pretrained=True)
+        img_encoder = torchvision.models.vgg16_bn(pretrained=opt.vgg_pretrained)
 
-        img_encoder.classifier = nn.Sequential(*list(model.classifier)[:4]) 
+        img_encoder.classifier = nn.Sequential(*list(img_encoder.classifier)[:4]) 
 
         self.question_img_encoder = img_encoder   # final size will be 4096
 
+        ## IMAGE AUTO ENCODER BEGINS ##
+        self.img_compressor = nn.Sequential(
+            nn.Linear(4096, 1024),
+            nn.Linear(1024, 100)
+        )
+
+        self.img_expander = nn.Sequential(
+            nn.Linear(100, 1024),
+            nn.Linear(1024, 4096)
+        )
+
+        ## IMAGE AUTO ENCODER ENDS ##
+
         self.question_encoder = nn.GRU(  # for encoding the 4 question images together
-            input_size=4096,   # img_encoder output size 
-            hidden_size=4096,
+            input_size=100,   # img_compressor output size 
+            hidden_size=100,
             num_layers=1,
             batch_first=True
         )
@@ -76,57 +93,124 @@ class BaseNetwork(nn.Module):
             batch_first=True
         )
 
+        # the concatenation of the question and context vectors is transformed to size 100.
+        self.combined_encoder = nn.Linear(200, 100) 
+
         # the outputs of the two encoders above will be concatenated together
 
-        img_encoder = torchvision.models.vgg16_bn(pretrained=True)
+        img_encoder = torchvision.models.vgg16_bn(pretrained=opt.vgg_pretrained)
 
-        img_encoder.classifier = nn.Sequential(*list(model.classifier)[:4]) 
+        img_encoder.classifier = nn.Sequential(*list(img_encoder.classifier)[:4]) 
 
         self.choice_img_encoder = img_encoder
 
-
-
-class Generator(BaseNetwork):
-
-    def forward(self, input_data):
+    def encode_questions_and_contexts(self, input_data):
         questions = torch.tensor([ x["question"] for x in input_data ])  # batch of question arrays
 
         questions_temp = questions.view(-1, *questions.shape[2:])
 
         encoded_questions_temp = self.question_img_encoder(questions_temp)
 
-        encoded_questions_single = encoded_questions_temp.view(
+        encoded_questions_temp_compressed = self.img_compressor(encoded_questions_temp)
+
+        # will use this for autoencoder loss by comparing against encoded_questions_temp
+        encoded_questions_temp_expanded = self.img_expander(encoded_questions_temp_compressed)
+
+        encoded_questions_single = encoded_questions_temp_compressed.view(
             *questions.shape[:2], 
             *encoded_questions_temp.shape[1:]
         )
 
-        encoded_questions_seq = self.question_encoder(encoded_questions_single)
+        encoded_questions_seq = self.question_encoder(encoded_questions_single)  # finally a list of vectors
 
         contexts = torch.tensor([ x["context"] for x in input_data ]) # batch of context vector sets
 
-        encoded_contexts = self.context_encoder(contexts)
+        encoded_contexts = self.context_encoder(contexts)   # finally a list of vectors
 
+        encoded_questions_and_contexts_temp = torch.cat((encoded_questions_seq, encoded_contexts), 1)
+
+        encoded_questions_and_contexts = self.combined_encoder(encoded_questions_and_contexts_temp)
+
+        return encoded_questions_and_contexts
+
+    def encode_choices(self, input_data):
         choices = torch.tensor([ x["choice_list"] for x in input_data ])  # batch of "choice_list"s
 
         choices_temp = choices.view(-1, *choices.shape[2:])
 
-        encoded_choices_temp = self.choice_img_encoder(choices_temp)
+        # using a set of weights different from question images for choice images
+        encoded_choices_temp = self.choice_img_encoder(choices_temp)  # a list with (batch_size * choice_list_size) number of vectors
 
-        encoded_choices = encoded_choices_temp.view(
-            *choices.shape[:2],
-            *encoded_choices_temp.shape[1:]
+        # re-using same compressor as used for images.
+        encoded_choices_temp_compressed = self.img_compressor(encoded_choices_temp)
+
+        # will be used for autoencoder loss by comparing against encoded_choices_temp
+        encoded_choices_temp_expanded = self.img_expander(encoded_choices_temp_compressed) 
+
+        return encoded_choices_temp_expanded
+
+
+class Generator(BaseNetwork):
+
+    def forward(self, input_data):
+        
+        encoded_questions_and_contexts = self.encode_questions_and_contexts(input_data)
+
+        encoded_choices_temp_expanded = self.encode_choices(input_data)
+
+        # encoded_choices = encoded_choices_temp.view(
+        #     *choices.shape[:2],
+        #     *encoded_choices_temp.shape[1:]
+        # )
+
+        relevance_temp = nn.functional.cosine_similarity(
+            encoded_questions_and_contexts, 
+            encoded_choices_temp_expanded, 
+            dim=1
         )
 
-        
+        relevance_logits = relevance_temp.view(
+            *choices.shape[:2],
+            *relevance_temp.shape[1:]
+        )           # list of vectors - one for each entry in the batch
 
+        relevance_distributions = nn.functional.softmax(relevance_logits, dim=1)
 
+        return relevance_logits, relevance_distributions
 
 
 
 class Discriminator(BaseNetwork):
 
-    def forward(self, input):
-        pass
+    def __init__(self):
+        super(Discriminator, self).__init__()
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, input_data):
+
+        encoded_questions_and_contexts = self.encode_questions_and_contexts(input_data)
+        
+        encoded_choices_temp_expanded = self.encode_choices(input_data)
+
+        # encoded_choices = encoded_choices_temp.view(
+        #     *choices.shape[:2],
+        #     *encoded_choices_temp.shape[1:]
+        # )
+
+        relevance_temp = nn.functional.cosine_similarity(
+            encoded_questions_and_contexts, 
+            encoded_choices_temp_expanded, 
+            dim=1
+        )
+
+        relevance_logits = relevance_temp.view(
+            *choices.shape[:2],
+            *relevance_temp.shape[1:]
+        )           # list of vectors - one for each entry in the batch
+
+        relevance_probabilities = self.sigmoid(relevance_logits)
+
+        return relevance_logits, relevance_probabilities
 
 class RecipeQADataset(Dataset):
     
@@ -192,8 +276,7 @@ class RescaleToTensorAndNormalize(object):
 
 
 train_embeddings = Doc2Vec(
-    "paragraph-vectors/data/sentences_train_model.dbow_numnoisewords\
-    .2_vecdim.100_batchsize.32_lr.0.001000_epoch.100_loss.0.781092.csv"
+    "paragraph-vectors/data/sentences_train_model.dbow_numnoisewords.2_vecdim.100_batchsize.32_lr.0.001000_epoch.100_loss.0.781092.csv"
 )
 train_dataset = RecipeQADataset(
     "recipeqa/new_train_cleaned.json", 
@@ -206,20 +289,20 @@ train_dataloader = torch.utils.data.DataLoader(
     shuffle=True, num_workers=int(opt.workers)
 )
 
-val_embeddings = Doc2Vec(
-    "paragraph-vectors/data/sentences_train_model.dbow_numnoisewords\
-    .2_vecdim.100_batchsize.32_lr.0.001000_epoch.100_loss.0.781092.csv"
-)  # change this to val
-val_dataset = RecipeQADataset(
-    "recipeqa/new_val_cleaned.json", 
-    "recipeqa/images/val/images-qa", 
-    val_embeddings,
-    transform = RescaleToTensorAndNormalize(224)
-)
-val_dataloader = torch.utils.data.DataLoader(
-    val_dataset, batch_size=opt.batchSize,
-    shuffle=True, num_workers=int(opt.workers)
-)
+# val_embeddings = Doc2Vec(
+#     "paragraph-vectors/data/sentences_train_model.dbow_numnoisewords\
+#     .2_vecdim.100_batchsize.32_lr.0.001000_epoch.100_loss.0.781092.csv"
+# )  # change this to val
+# val_dataset = RecipeQADataset(
+#     "recipeqa/new_val_cleaned.json", 
+#     "recipeqa/images/val/images-qa", 
+#     val_embeddings,
+#     transform = RescaleToTensorAndNormalize(224)
+# )
+# val_dataloader = torch.utils.data.DataLoader(
+#     val_dataset, batch_size=opt.batchSize,
+#     shuffle=True, num_workers=int(opt.workers)
+# )
 
 netG = Generator()
 netD = Discriminator()
