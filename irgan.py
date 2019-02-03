@@ -275,6 +275,7 @@ class RescaleToTensorAndNormalize(object):
         temp_choice_list = []
         for img in sample["choice_list"]:
             img = transform.resize(img, (self.output_size, self.output_size))
+            print(img.shape)
             img = img.transpose((2,0,1))
             img = torch.from_numpy(img)
             img = normalize(img)
