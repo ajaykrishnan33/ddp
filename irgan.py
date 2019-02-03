@@ -351,46 +351,46 @@ def generate_samples(num_samples, batch):
 
     return samples
 
-def training():
-    netG.apply(weights_init)
-    if opt.netG != '':
-        netG.load_state_dict(torch.load(opt.netG))
+# def training():
+#     netG.apply(weights_init)
+#     if opt.netG != '':
+#         netG.load_state_dict(torch.load(opt.netG))
 
-    print(netG)
+#     print(netG)
 
-    netD.apply(weights_init)
-    if opt.netD != '':
-        netD.load_state_dict(torch.load(opt.netD))
+#     netD.apply(weights_init)
+#     if opt.netD != '':
+#         netD.load_state_dict(torch.load(opt.netD))
 
-    print(netD)
+#     print(netD)
 
-    pre_train(opt.netG, opt.netD)
+#     pre_train(opt.netG, opt.netD)
 
-    for epoch in range(opt.niter):
-        for g in range(opt.g_epochs):
-            for i, batch in enumerate(dataloader, 0):
-                # [(question, [samples from the relevance prob dist for this question])]
-                samples = generate_samples(num_samples, batch)
-                loss = torch.mean(torch.log(netG(samples)) * torch.log(1 + torch.exp(netD(samples))))
-                loss.backward()
-                optimizerG.step()
+#     for epoch in range(opt.niter):
+#         for g in range(opt.g_epochs):
+#             for i, batch in enumerate(dataloader, 0):
+#                 # [(question, [samples from the relevance prob dist for this question])]
+#                 samples = generate_samples(num_samples, batch)
+#                 loss = torch.mean(torch.log(netG(samples)) * torch.log(1 + torch.exp(netD(samples))))
+#                 loss.backward()
+#                 optimizerG.step()
 
-        for d in range(opt.d_epochs):
-            for batch in enumerate(dataloader, 0):
-                samples = generate_samples(num_samples, batch)
-                neg_labels = torch.full((batch.size(0),), 0, device=device)
-                outputs = netD(samples)
-                neg_loss = criterion(outputs, neg_labels)
-                pos_labels = torch.full((batch.size(0),), 1, device=device)
-                outputs = netD(batch)
-                pos_loss = criterion(outputs, pos_labels)
+#         for d in range(opt.d_epochs):
+#             for batch in enumerate(dataloader, 0):
+#                 samples = generate_samples(num_samples, batch)
+#                 neg_labels = torch.full((batch.size(0),), 0, device=device)
+#                 outputs = netD(samples)
+#                 neg_loss = criterion(outputs, neg_labels)
+#                 pos_labels = torch.full((batch.size(0),), 1, device=device)
+#                 outputs = netD(batch)
+#                 pos_loss = criterion(outputs, pos_labels)
 
-                total_loss = neg_loss + pos_loss
-                total_loss.backward()
-                optimizerD.step()
+#                 total_loss = neg_loss + pos_loss
+#                 total_loss.backward()
+#                 optimizerD.step()
 
-        torch.save(netG.state_dict(), '%s/netG_epoch_%d.pth' % (opt.outf, epoch))
-        torch.save(netD.state_dict(), '%s/netD_epoch_%d.pth' % (opt.outf, epoch))
+#         torch.save(netG.state_dict(), '%s/netG_epoch_%d.pth' % (opt.outf, epoch))
+#         torch.save(netD.state_dict(), '%s/netD_epoch_%d.pth' % (opt.outf, epoch))
 
-if __name__ == "__main__":
-    training()
+# if __name__ == "__main__":
+#     training()
