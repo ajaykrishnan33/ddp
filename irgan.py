@@ -286,9 +286,14 @@ train_dataset = RecipeQADataset(
     train_embeddings,
     transform = RescaleToTensorAndNormalize(224)
 )
+
+def my_collate_fn(samples):
+    return samples
+
 train_dataloader = torch.utils.data.DataLoader(
     train_dataset, batch_size=opt.batchSize,
-    shuffle=True, num_workers=int(opt.workers)
+    shuffle=True, num_workers=int(opt.workers),
+    collate_fn=my_collate_fn
 )
 
 # val_embeddings = Doc2Vec(
