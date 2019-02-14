@@ -22,7 +22,7 @@ class Doc2Vec:
         self.embeddings = np.loadtxt(embeddings_file_path, delimiter=",", skiprows=1)
 
     def get_vectors(self, indices):
-        return torch.from_numpy(self.embeddings[indices])
+        return torch.from_numpy(self.embeddings[indices]).to(torch.float)
 
 class RecipeQADataset(Dataset):
     
@@ -90,7 +90,7 @@ class RescaleToTensorAndNormalize(object):
             img = normalize(img)
             final_img_list.append(img)
 
-        return torch.stack((*final_img_list,))
+        return torch.stack((*final_img_list,)).to(torch.float)
 
     def __call__(self, sample):
 

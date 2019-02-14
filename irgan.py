@@ -151,6 +151,7 @@ def training():
     for epoch in range(opt.niter):
         for g in range(opt.g_epochs):
             for i, batch in enumerate(dataloader, 0):
+                print("Pretraining Generator Epoch:{}, batch:{}".format(epoch, i))
                 netG.zero_grad()
                 
                 g_logits, distributions = netG(batch) # context + question + choice_list ==> probability distribution over choice_list
@@ -203,6 +204,7 @@ def training():
 
         for d in range(opt.d_epochs):
             for batch in enumerate(dataloader, 0):
+                print("Pretraining Discriminator Epoch:{}, batch:{}".format(epoch, i))
                 netD.zero_grad()
                 
                 """

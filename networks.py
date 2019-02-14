@@ -44,9 +44,9 @@ class BaseNetwork(nn.Module):
 
         # the outputs of the two encoders above will be concatenated together
 
-        img_encoder = torchvision.models.vgg16_bn(pretrained=opt.vgg_pretrained)
+        # img_encoder = torchvision.models.vgg16_bn(pretrained=opt.vgg_pretrained)
 
-        img_encoder.classifier = nn.Sequential(*list(img_encoder.classifier)[:4]) 
+        # img_encoder.classifier = nn.Sequential(*list(img_encoder.classifier)[:4]) 
 
         self.choice_img_encoder = img_encoder
 
@@ -64,7 +64,7 @@ class BaseNetwork(nn.Module):
 
         encoded_questions_single = encoded_questions_temp_compressed.view(
             *questions.shape[:2], 
-            *encoded_questions_temp.shape[1:]
+            *encoded_questions_temp_compressed.shape[1:]
         )
 
         encoded_questions_seq = self.question_encoder(encoded_questions_single)  # finally a list of vectors
