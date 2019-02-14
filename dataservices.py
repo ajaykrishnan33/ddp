@@ -131,7 +131,7 @@ def batch_collator(device):
             "size": len(batch),
         }
 
-        return batch
+        return final_batch
 
     return _internal
 
