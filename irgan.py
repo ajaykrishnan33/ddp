@@ -1,20 +1,18 @@
 import argparse
 import os
 import torch
-import torchvision
 import torch.nn as nn
-from   torch.utils.data import Dataset
 import torch.optim as optim
-import torchvision.transforms as transforms
 import random
 import numpy as np
-import ujson
-from skimage import io, transform
+
+import dataservices
+import networks
+
 import torch.multiprocessing
 torch.multiprocessing.set_sharing_strategy('file_system')
 
 parser = argparse.ArgumentParser()
-# parser.add_argument('--dataroot', required=True, help='path to dataset')
 parser.add_argument('--workers', type=int, help='number of data loading workers', default=2)
 parser.add_argument('--batchSize', type=int, default=64, help='input batch size')
 parser.add_argument('--imageSize', type=int, default=64, help='the height / width of the input image to network')
@@ -46,356 +44,91 @@ print("Random Seed: ", opt.manualSeed)
 random.seed(opt.manualSeed)
 torch.manual_seed(opt.manualSeed)
 
-def load_vocabulary():
-    with open("recipeqa/vocab_clean.txt", "r") as f:
-        vocab = {}
-        for i, w in enumerate(f):
-            vocab[str(w).strip()] = i
-        return vocab
-
-class Doc2Vec:
-    def __init__(self, embeddings_file_path):
-        self.embeddings = np.loadtxt(embeddings_file_path, delimiter=",", skiprows=1)
-
-    def get_vectors(self, indices):
-        return self.embeddings[indices]
-
-class BaseNetwork(nn.Module):
-    def __init__(self):
-        super(BaseNetwork, self).__init__()
-
-        img_encoder = torchvision.models.vgg16_bn(pretrained=opt.vgg_pretrained)
-
-        img_encoder.classifier = nn.Sequential(*list(img_encoder.classifier)[:4]) 
-
-        self.question_img_encoder = img_encoder   # final size will be 4096
-
-        ## IMAGE AUTO ENCODER BEGINS ##
-        self.img_compressor = nn.Sequential(
-            nn.Linear(4096, 1024),
-            nn.Linear(1024, 100)
-        )
-
-        self.img_expander = nn.Sequential(
-            nn.Linear(100, 1024),
-            nn.Linear(1024, 4096)
-        )
-
-        ## IMAGE AUTO ENCODER ENDS ##
-
-        self.question_encoder = nn.GRU(  # for encoding the 4 question images together
-            input_size=100,   # img_compressor output size 
-            hidden_size=100,
-            num_layers=1,
-            batch_first=True
-        )
-
-        self.context_encoder = nn.GRU(   # for encoding the context vectors together
-            input_size=100,    # doc2vec embedding size
-            hidden_size=100,
-            num_layers=1,
-            batch_first=True
-        )
-
-        # the concatenation of the question and context vectors is transformed to size 100.
-        self.combined_encoder = nn.Linear(200, 100) 
-
-        # the outputs of the two encoders above will be concatenated together
-
-        img_encoder = torchvision.models.vgg16_bn(pretrained=opt.vgg_pretrained)
-
-        img_encoder.classifier = nn.Sequential(*list(img_encoder.classifier)[:4]) 
-
-        self.choice_img_encoder = img_encoder
-
-    def encode_questions_and_contexts(self, input_data):
-        questions = torch.tensor([ x["question"] for x in input_data ])  # batch of question arrays
-
-        questions_temp = questions.view(-1, *questions.shape[2:])
-
-        encoded_questions_temp = self.question_img_encoder(questions_temp)
-
-        encoded_questions_temp_compressed = self.img_compressor(encoded_questions_temp)
-
-        # will use this for autoencoder loss by comparing against encoded_questions_temp
-        encoded_questions_temp_expanded = self.img_expander(encoded_questions_temp_compressed)
-
-        encoded_questions_single = encoded_questions_temp_compressed.view(
-            *questions.shape[:2], 
-            *encoded_questions_temp.shape[1:]
-        )
-
-        encoded_questions_seq = self.question_encoder(encoded_questions_single)  # finally a list of vectors
-
-        contexts = torch.tensor([ x["context"] for x in input_data ]) # batch of context vector sets
-
-        encoded_contexts = self.context_encoder(contexts)   # finally a list of vectors
-
-        encoded_questions_and_contexts_temp = torch.cat((encoded_questions_seq, encoded_contexts), 1)
-
-        encoded_questions_and_contexts = self.combined_encoder(encoded_questions_and_contexts_temp)
-
-        return encoded_questions_and_contexts
-
-    def encode_choices(self, input_data):
-        choices = torch.tensor([ x["choice_list"] for x in input_data ])  # batch of "choice_list"s
-
-        choices_temp = choices.view(-1, *choices.shape[2:])
-
-        # using a set of weights different from question images for choice images
-        encoded_choices_temp = self.choice_img_encoder(choices_temp)  # a list with (batch_size * choice_list_size) number of vectors
-
-        # re-using same compressor as used for images.
-        encoded_choices_temp_compressed = self.img_compressor(encoded_choices_temp)
-
-        # will be used for autoencoder loss by comparing against encoded_choices_temp
-        encoded_choices_temp_expanded = self.img_expander(encoded_choices_temp_compressed) 
-
-        return encoded_choices_temp_expanded
-
-
-class Generator(BaseNetwork):
-
-    def forward(self, input_data):
-        
-        encoded_questions_and_contexts = self.encode_questions_and_contexts(input_data)
-
-        encoded_choices_temp_expanded = self.encode_choices(input_data)
-
-        # encoded_choices = encoded_choices_temp.view(
-        #     *choices.shape[:2],
-        #     *encoded_choices_temp.shape[1:]
-        # )
-
-        relevance_temp = nn.functional.cosine_similarity(
-            encoded_questions_and_contexts, 
-            encoded_choices_temp_expanded, 
-            dim=1
-        )
-
-        relevance_logits = relevance_temp.view(
-            *choices.shape[:2],
-            *relevance_temp.shape[1:]
-        )           # list of vectors - one for each entry in the batch
-
-        relevance_distributions = nn.functional.softmax(relevance_logits, dim=1)
-
-        return relevance_logits, relevance_distributions
-
-
-
-class Discriminator(BaseNetwork):
-
-    def __init__(self):
-        super(Discriminator, self).__init__()
-        self.sigmoid = nn.Sigmoid()
-
-    def forward(self, input_data):
-
-        encoded_questions_and_contexts = self.encode_questions_and_contexts(input_data)
-        
-        encoded_choices_temp_expanded = self.encode_choices(input_data)
-
-        # encoded_choices = encoded_choices_temp.view(
-        #     *choices.shape[:2],
-        #     *encoded_choices_temp.shape[1:]
-        # )
-
-        relevance_temp = nn.functional.cosine_similarity(
-            encoded_questions_and_contexts, 
-            encoded_choices_temp_expanded, 
-            dim=1
-        )
-
-        relevance_logits = relevance_temp.view(
-            *choices.shape[:2],
-            *relevance_temp.shape[1:]
-        )           # list of vectors - one for each entry in the batch
-
-        relevance_probabilities = self.sigmoid(relevance_logits)
-
-        return relevance_logits, relevance_probabilities
-
-class RecipeQADataset(Dataset):
-    
-    def __init__(self, csv_file, root_dir, embeddings, transform=None):
-        self.data_list = ujson.load(open(csv_file, "r"))
-        self.root_dir = root_dir
-        self.transform = transform
-        self.embeddings = embeddings
-        # self.vocab = load_vocabulary()
-
-    def __len__(self):
-        return len(self.data_list)
-
-    def __getitem__(self, idx):
-        ret = {}
-        data_item = self.data_list[idx]
-
-        # ret["context"] = [
-        #     [
-        #         self.vocab[word] for word in c_item["cleaned_body"].split()
-        #     ] for c_item in data_item["context"]
-        # ]
-
-        document_ids = [
-            data_item["context_base_id"] + i for i, _ in enumerate(data_item["context"])
-        ]
-
-        ret["context"] = self.embeddings.get_vectors(document_ids)
-
-        ret["choice_list"] = [
-            io.imread(os.path.join(self.root_dir, img)) for img in data_item["choice_list"]
-        ]
-
-        ret["question"] = [
-            io.imread(os.path.join(self.root_dir, img)) for img in data_item["question"]
-        ]
-
-        if self.transform:
-            ret = self.transform(ret)
-
-        return ret
-
-class RescaleToTensorAndNormalize(object):
-
-    def __init__(self, output_size):
-        self.output_size = output_size
-
-    def __call__(self, sample):
-
-        normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-
-        # sample["choice_list"] = [
-        #     normalize(torch.from_numpy(transform.resize(img, (self.output_size, self.output_size)).transpose((2,0,1))))
-        #     for img in sample["choice_list"]
-        # ]
-
-        # sample["choice_list"] = []
-        temp_choice_list = []
-        for img in sample["choice_list"]:
-            img = transform.resize(img, (self.output_size, self.output_size))
-            try:
-                img = img.transpose((2,0,1))
-            except Exception as e:
-                if img.shape==(self.output_size, self.output_size):
-                    print("Greyscale instead of color")
-                    img = np.stack((img,)*3, axis=0)
-                else:
-                    print("Error:", img.shape)
-                    raise e
-            img = torch.from_numpy(img)
-            img = normalize(img)
-            temp_choice_list.append(img)
-
-        sample["choice_list"] = temp_choice_list
-
-        # sample["question"] = [
-        #     normalize(torch.from_numpy(transform.resize(img, (self.output_size, self.output_size)).transpose((2,0,1))))
-        #     for img in sample["question"]   
-        # ]
-
-        temp_question_list = []
-        for img in sample["question"]:
-            img = transform.resize(img, (self.output_size, self.output_size))
-            try:
-                img = img.transpose((2,0,1))
-            except Exception as e:
-                if img.shape==(self.output_size, self.output_size):
-                    print("Greyscale instead of color")
-                    img = np.stack((img,)*3, axis=0)
-                else:
-                    print("Error:", img.shape)
-                    raise e
-            img = torch.from_numpy(img)
-            img = normalize(img)
-            temp_question_list.append(img)
-
-        sample["question"] = temp_question_list
-
-        return sample
-
-
-train_embeddings = Doc2Vec(
+train_embeddings = dataservices.Doc2Vec(
     "paragraph-vectors/data/sentences_train_model.dbow_numnoisewords.2_vecdim.100_batchsize.32_lr.0.001000_epoch.100_loss.0.781092.csv"
 )
-train_dataset = RecipeQADataset(
+train_dataset = dataservices.RecipeQADataset(
     "recipeqa/new_train_cleaned.json", 
     "recipeqa/images/train/images-qa",
     train_embeddings,
-    transform = RescaleToTensorAndNormalize(224)
+    transform = dataservices.RescaleToTensorAndNormalize(224)
 )
-
-def my_collate_fn(samples):
-    return samples
 
 train_dataloader = torch.utils.data.DataLoader(
     train_dataset, batch_size=opt.batchSize,
     shuffle=False, num_workers=int(opt.workers),
-    collate_fn=my_collate_fn
+    collate_fn=dataservices.batch_collator
 )
 
-# val_embeddings = Doc2Vec(
+# val_embeddings = dataservices.Doc2Vec(
 #     "paragraph-vectors/data/sentences_train_model.dbow_numnoisewords\
 #     .2_vecdim.100_batchsize.32_lr.0.001000_epoch.100_loss.0.781092.csv"
 # )  # change this to val
-# val_dataset = RecipeQADataset(
+# val_dataset = dataservices.RecipeQADataset(
 #     "recipeqa/new_val_cleaned.json", 
 #     "recipeqa/images/val/images-qa", 
 #     val_embeddings,
-#     transform = RescaleToTensorAndNormalize(224)
+#     transform = dataservices.RescaleToTensorAndNormalize(224)
 # )
 # val_dataloader = torch.utils.data.DataLoader(
 #     val_dataset, batch_size=opt.batchSize,
-#     shuffle=True, num_workers=int(opt.workers)
+#     shuffle=True, num_workers=int(opt.workers),
+#     collate_fn=dataservices.batch_collator
 # )
 
-netG = Generator()
-netD = Discriminator()
+netG = networks.Generator(opt)
+netD = networks.Discriminator(opt)
 
 def weights_init(m):
     pass
 
-criterion = nn.BCEWithLogitsLoss()
+criterionD = nn.BCEWithLogitsLoss()  # logsigmoid + binary cross entropy
+criterionG = nn.CrossEntropyLoss()   # logsoftmax + multi-class cross entropy
 
 optimizerD = optim.Adam(netD.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 optimizerG = optim.Adam(netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 
-def gen_expected_answers(batch):
-
-    one_hot = [[] for i in range(batch.size(0))]
-
-    return one_hot
-
 def pre_train(train_netG, train_netD):
-    for epoch in range(opt.niter):
-        for i, batch in enumerate(dataloader, 0):
-            netD.zero_grad()
-            outputs = netD(batch)
-            labels = torch.full((batch.size(0),), 1, device=device)
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizerD.step()
 
-    for epoch in range(opt.niter):
-        for i, batch in enumerate(dataloader, 0):
-            netG.zero_grad()
-            probs = netG(batch)
-            expected_outputs = gen_expected_answers(batch)
-            loss = criterion(probs, expected_outputs)
-            loss.backward()
-            optimizerG.step()
+    if train_netD:
+        for epoch in range(opt.niter):
+            for i, batch in enumerate(train_dataloader, 0):
+                netD.zero_grad()
+                logits, probabilities = netD(batch)
+                labels = batch["answers"]
+                loss = criterionD(logits, labels)
+                loss.backward()
+                optimizerD.step()
 
-def generate_samples(num_samples, batch):
+    if train_netG:
+        for epoch in range(opt.niter):
+            for i, batch in enumerate(train_dataloader, 0):
+                netG.zero_grad()
+                logits, distributions = netG(batch)
+                expected_outputs = batch["answers"]
+                loss = criterionG(logits, expected_outputs)
+                loss.backward()
+                optimizerG.step()
+
+def generate_samples(batch, distributions, num_samples):
     samples = []
+    sample_indices = []
 
-    probs = netG(batch) # context + question + choice_list ==> probability distribution over choice_list
+    for i, data in enumerate(batch["choices"]):
+        local_sample_indices = torch.multinomial(distributions[i], num_samples, replacement=True)
+        samples.append(data[local_sample_indices])
+        sample_indices.append(local_sample_indices)
 
-    for i, data in enumerate(batch):
-        sample = np.random.choice(data.choice_list, p=probs[i], replace=True, size=num_samples)
-        samples.append(sample)
+    samples = torch.tensor(samples)
 
-    return samples
+    sample_batch = {
+        "questions":batch["questions"],
+        "contexts":batch["contexts"],
+        "choices":samples,
+        "size": batch["size"]
+    }
+
+    return sample_batch, sample_indices
 
 def training():
     netG.apply(weights_init)
@@ -410,28 +143,82 @@ def training():
 
     print(netD)
 
-    pre_train(opt.netG, opt.netD)
+    pre_train(opt.netG == '', opt.netD == '')
 
     for epoch in range(opt.niter):
         for g in range(opt.g_epochs):
             for i, batch in enumerate(dataloader, 0):
-                # [(question, [samples from the relevance prob dist for this question])]
-                samples = generate_samples(num_samples, batch)
-                loss = torch.mean(torch.log(netG(samples)) * torch.log(1 + torch.exp(netD(samples))))
+                netG.zero_grad()
+                
+                g_logits, distributions = netG(batch) # context + question + choice_list ==> probability distribution over choice_list
+                
+                sample_batch, sample_indices = generate_samples(batch, distributions, num_samples)
+
+                d_sample_logits, _ = netD(sample_batch)
+
+                g_sample_probs = []
+
+                for i, local_sample_indices in enumerate(sample_indices):
+                    g_sample_probs.append(distributions[i, local_sample_indices])
+
+                """
+                Explanation regarding generate_samples, d_sample_logits, g_sample_probs:
+                    generate_samples generates K samples per question from the choiceset for the question
+                    and sets the K samples as the new choiceset for the question. Since the output of the 
+                    discriminator for each choice is independent of the other choices, we can use this trick
+                    of setting all K samples as the choices of a single question. If the generator were 
+                    perfect, then all the K samples will be identical and will be equal to the right answer
+                    and hence the discriminator will output 1 for every choice of the question.        
+
+                    d_sample_logits has the shape: batch_size X K
+                    Each K-sized vector in d_sample_logits is a list of likelihoods for each of the K 
+                    samples for the question being the right answer to the question. 
+                    d_sample_logits[question_num][j] --> probability of sample j being the right answer to
+                    the question at index "question_num" in the batch (computed by the discriminator)
+
+                    g_sample_probs has the shape: batch_size X K
+                    Each K-sized vector in g_sample_probs is a list of probability values (of relevance) 
+                    for the K samples computed over the original choices for the question 
+                    (and not just the chosen samples).
+                    g_sample_probs[question_num][j] --> probability of sample j being the right answer
+                    to the question at index "question_num" in the batch (as computed by the generator 
+                    from the original choice set).
+
+                    For every question q, for every sample j, we need to compute:
+                    logsigmoid(d_sample_logits[q][j]) * log(g_sample_probs[q][j])
+
+                    For every question q, we need to find:
+                    mean_over_all_j(logsigmoid(d_sample_logits[q][j]) * log(g_sample_probs[q][j]))
+                    
+                """                
+
+                loss = torch.mean(
+                    torch.log_softmax(g_sample_logits) * torch.logsigmoid(d_sample_logits)
+                )
                 loss.backward()
                 optimizerG.step()
 
         for d in range(opt.d_epochs):
             for batch in enumerate(dataloader, 0):
-                samples = generate_samples(num_samples, batch)
-                neg_labels = torch.full((batch.size(0),), 0, device=device)
-                outputs = netD(samples)
-                neg_loss = criterion(outputs, neg_labels)
-                pos_labels = torch.full((batch.size(0),), 1, device=device)
-                outputs = netD(batch)
-                pos_loss = criterion(outputs, pos_labels)
+                netD.zero_grad()
+                
+                """
+                Here, we need to generate N samples from the choice list for every question and pass
+                them through the discriminator. We want the discriminator to output 0 for these images.
+                We will also pass the true answers through the discriminator which must output 1 for them.
+                """
+                g_logits, distributions = netG(batch)
+                sample_batch, sample_indices = generate_samples(num_samples, distributions, batch)
+                
+                neg_labels = torch.full((batch["size"], num_samples), 0, device=device)
+                sample_logits, _ = netD(sample_batch)
+                neg_loss = criterionD(sample_logits, neg_labels)
+                
+                batch_labels = batch["answers"]
+                batch_logits = netD(batch)
+                batch_loss = criterionD(batch_logits, batch_labels)
 
-                total_loss = neg_loss + pos_loss
+                total_loss = neg_loss + batch_loss
                 total_loss.backward()
                 optimizerD.step()
 
