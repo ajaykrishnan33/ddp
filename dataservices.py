@@ -90,7 +90,7 @@ class RescaleToTensorAndNormalize(object):
             img = normalize(img)
             final_img_list.append(img)
 
-        return final_img_list
+        return torch.tensor(final_img_list)
 
     def __call__(self, sample):
 
