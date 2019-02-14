@@ -9,7 +9,6 @@ import ujson
 from skimage import io, transform
 import torch.multiprocessing
 torch.multiprocessing.set_sharing_strategy('file_system')
-torch.multiprocessing.set_start_method("spawn")
 
 def load_vocabulary():
     with open("recipeqa/vocab_clean.txt", "r") as f:

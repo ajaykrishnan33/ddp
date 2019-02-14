@@ -11,6 +11,7 @@ import networks
 
 import torch.multiprocessing
 torch.multiprocessing.set_sharing_strategy('file_system')
+torch.multiprocessing.set_start_method("spawn")
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--workers', type=int, help='number of data loading workers', default=2)
