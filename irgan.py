@@ -33,6 +33,8 @@ parser.add_argument('--vgg_pretrained', type=bool, help='vgg pretrained?', defau
 opt = parser.parse_args()
 print(opt)
 
+device = torch.device("cuda:0" if opt.cuda else "cpu")
+
 try:
     os.makedirs(opt.outf)
 except OSError:
@@ -51,13 +53,13 @@ train_dataset = dataservices.RecipeQADataset(
     "recipeqa/new_train_cleaned.json", 
     "recipeqa/images/train/images-qa",
     train_embeddings,
-    transform = dataservices.RescaleToTensorAndNormalize(224)
+    transform=dataservices.RescaleToTensorAndNormalize(224)
 )
 
 train_dataloader = torch.utils.data.DataLoader(
     train_dataset, batch_size=opt.batchSize,
     shuffle=False, num_workers=int(opt.workers),
-    collate_fn=dataservices.batch_collator
+    collate_fn=dataservices.batch_collator(device=device)
 )
 
 # val_embeddings = dataservices.Doc2Vec(
@@ -68,16 +70,16 @@ train_dataloader = torch.utils.data.DataLoader(
 #     "recipeqa/new_val_cleaned.json", 
 #     "recipeqa/images/val/images-qa", 
 #     val_embeddings,
-#     transform = dataservices.RescaleToTensorAndNormalize(224)
+#     transform=dataservices.RescaleToTensorAndNormalize(224)
 # )
 # val_dataloader = torch.utils.data.DataLoader(
 #     val_dataset, batch_size=opt.batchSize,
 #     shuffle=True, num_workers=int(opt.workers),
-#     collate_fn=dataservices.batch_collator
+#     collate_fn=dataservices.batch_collator(device=device)
 # )
 
-netG = networks.Generator(opt)
-netD = networks.Discriminator(opt)
+netG = networks.Generator(opt).to(device)
+netD = networks.Discriminator(opt).to(device)
 
 def weights_init(m):
     pass
@@ -119,7 +121,7 @@ def generate_samples(batch, distributions, num_samples):
         samples.append(data[local_sample_indices])
         sample_indices.append(local_sample_indices)
 
-    samples = torch.tensor(samples)
+    samples = torch.tensor(samples).to(device)
 
     sample_batch = {
         "questions":batch["questions"],
@@ -210,7 +212,7 @@ def training():
                 g_logits, distributions = netG(batch)
                 sample_batch, sample_indices = generate_samples(num_samples, distributions, batch)
                 
-                neg_labels = torch.full((batch["size"], num_samples), 0, device=device)
+                neg_labels = torch.full((batch["size"], num_samples), 0).to(device)
                 sample_logits, _ = netD(sample_batch)
                 neg_loss = criterionD(sample_logits, neg_labels)
                 

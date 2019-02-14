@@ -101,34 +101,38 @@ class RescaleToTensorAndNormalize(object):
 
         return sample
 
-def batch_collator(batch):
+def batch_collator(device):
+	
+	def _internal(batch):
 
-    questions = nn.utils.rnn.pad_sequence(
-        [ x["question"] for x in batch ],
-        batch_first = True
-    )  # batch of question arrays
+	    questions = nn.utils.rnn.pad_sequence(
+	        [ x["question"] for x in batch ],
+	        batch_first = True
+	    ).to(device)  # batch of question arrays
 
-    contexts = nn.utils.rnn.pad_sequence(
-        [ x["context"] for x in batch ],
-        batch_first = True
-    ) # batch of context vector sets
+	    contexts = nn.utils.rnn.pad_sequence(
+	        [ x["context"] for x in batch ],
+	        batch_first = True
+	    ).to(device) # batch of context vector sets
 
-    choices = nn.utils.rnn.pad_sequence(
-        [ x["choice_list"] for x in batch ],
-        batch_first = True
-    )  # batch of "choice_list"s
+	    choices = nn.utils.rnn.pad_sequence(
+	        [ x["choice_list"] for x in batch ],
+	        batch_first = True
+	    ).to(device)  # batch of "choice_list"s
 
-    answers = torch.full((len(batch), choices.size(1)), 0, device=device)
-    answer_indices = [ x["answer"] for x in batch ]  # batch of "answers"s
-    answers[range(len(batch)), answer_indices] = 1  
+	    answers = torch.full((len(batch), choices.size(1)), 0).to(device)
+	    answer_indices = [ x["answer"] for x in batch ]  # batch of "answers"s
+	    answers[range(len(batch)), answer_indices] = 1  
 
-    final_batch = {
-        "questions": questions,
-        "contexts": contexts,
-        "choices": choices,
-        "answers": answers,
-        "size": len(batch),
-    }
+	    final_batch = {
+	        "questions": questions,
+	        "contexts": contexts,
+	        "choices": choices,
+	        "answers": answers,
+	        "size": len(batch),
+	    }
 
-    return batch
+	    return batch
+
+	return _internal
 
