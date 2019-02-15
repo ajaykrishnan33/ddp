@@ -101,7 +101,7 @@ class BaseNetwork(nn.Module):
         # encoded_choices_temp_compressed = self.img_compressor(encoded_choices_temp)
 
         relevance_logit_list = []
-        for choice_list in choices:
+        for i, choice_list in enumerate(choices):
             relevance_logits = []
             for choice in choice_list:
                 encoded_choice = self.img_compressor(
@@ -111,8 +111,8 @@ class BaseNetwork(nn.Module):
                 ).squeeze(dim=1)
                 
                 relevance = nn.functional.cosine_similarity(
-                    encoded_questions_and_contexts, 
-                    encoded_choices_temp_compressed, 
+                    encoded_questions_and_contexts[i], 
+                    encoded_choice, 
                     dim=1
                 )
 
