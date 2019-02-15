@@ -152,7 +152,7 @@ def training():
 
     for epoch in range(opt.niter):
         for g in range(opt.g_epochs):
-            for i, batch in enumerate(dataloader, 0):
+            for i, batch in enumerate(train_dataloader, 0):
                 print("Training Generator Epoch:{}, batch:{}".format(epoch, i))
                 netG.zero_grad()
                 
@@ -205,7 +205,7 @@ def training():
                 optimizerG.step()
 
         for d in range(opt.d_epochs):
-            for batch in enumerate(dataloader, 0):
+            for batch in enumerate(train_dataloader, 0):
                 print("Training Discriminator Epoch:{}, batch:{}".format(epoch, i))
                 netD.zero_grad()
                 
