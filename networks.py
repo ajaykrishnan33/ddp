@@ -60,7 +60,7 @@ class BaseNetwork(nn.Module):
         encoded_questions_temp_compressed = self.img_compressor(encoded_questions_temp)
 
         # will use this for autoencoder loss by comparing against encoded_questions_temp
-        encoded_questions_temp_expanded = self.img_expander(encoded_questions_temp_compressed)
+        # encoded_questions_temp_expanded = self.img_expander(encoded_questions_temp_compressed)
 
         encoded_questions_single = encoded_questions_temp_compressed.view(
             *questions.shape[:2], 
