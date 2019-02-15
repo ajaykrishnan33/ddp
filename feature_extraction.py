@@ -164,7 +164,7 @@ def generate_features():
         for j, img_path in enumerate(batch["paths"]):
             torch.save(encoded_images[j], os.path.join(opt.outf, "val", img_path))
 
-    for i, batch in enumerate(train_dataloader, 0):
+    for i, batch in progressbar.progressbar(enumerate(train_dataloader, 0), widgets=widgets):
         encoded_images = net(batch)
         for j, img_path in enumerate(batch["paths"]):
             torch.save(encoded_images[j], os.path.join(opt.outf, "train", img_path))
