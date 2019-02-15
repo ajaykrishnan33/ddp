@@ -86,10 +86,16 @@ class BaseNetwork(nn.Module):
     def encode_choices(self, input_data):
         choices = input_data["choices"]  # batch of "choice_list"s
 
-        choices_temp = choices.view(-1, *choices.shape[2:])
+        # choices_temp = choices.view(-1, *choices.shape[2:])
+
+        encoded_choices_temp = []
+        for choice in choices:
+            encoded_choices_temp.append(self.choice_img_encoder(choice))
+
+        encoded_choices_temp = torch.stack((*encoded_choices_temp,))
 
         # using a set of weights different from question images for choice images
-        encoded_choices_temp = self.choice_img_encoder(choices_temp)  # a list with (batch_size * choice_list_size) number of vectors
+        # encoded_choices_temp = self.choice_img_encoder(choices_temp)  # a list with (batch_size * choice_list_size) number of vectors
 
         # re-using same compressor as used for images.
         encoded_choices_temp_compressed = self.img_compressor(encoded_choices_temp)
