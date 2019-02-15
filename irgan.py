@@ -96,6 +96,7 @@ def pre_train(train_netG, train_netD):
     if train_netD:
         for epoch in range(opt.niter):
             for i, batch in enumerate(train_dataloader, 0):
+                print("Pretraining discriminator Epoch: {}, batch_num: {}".format(epoch, i))
                 netD.zero_grad()
                 logits, probabilities = netD(batch)
                 labels = batch["answers"]
@@ -106,6 +107,7 @@ def pre_train(train_netG, train_netD):
     if train_netG:
         for epoch in range(opt.niter):
             for i, batch in enumerate(train_dataloader, 0):
+                print("Pretraining generator Epoch: {}, batch_num: {}".format(epoch, i))
                 netG.zero_grad()
                 logits, distributions = netG(batch)
                 expected_outputs = batch["answers"]

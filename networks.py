@@ -67,11 +67,15 @@ class BaseNetwork(nn.Module):
             *encoded_questions_temp_compressed.shape[1:]
         )
 
-        encoded_questions_seq = self.question_encoder(encoded_questions_single)  # finally a list of vectors
+        _, encoded_questions_seq = self.question_encoder(encoded_questions_single)  # finally a list of vectors
+
+        encoded_questions_seq = torch.squeeze(encoded_questions_seq, dim=1)
 
         contexts = input_data["contexts"]  # batch of context vector sets
 
-        encoded_contexts = self.context_encoder(contexts)   # finally a list of vectors
+        _, encoded_contexts = self.context_encoder(contexts)   # finally a list of vectors
+
+        encoded_contexts = torch.squeeze(encoded_contexts, dim=1)
 
         encoded_questions_and_contexts_temp = torch.cat((encoded_questions_seq, encoded_contexts), 1)
 
@@ -93,7 +97,7 @@ class BaseNetwork(nn.Module):
         # will be used for autoencoder loss by comparing against encoded_choices_temp
         encoded_choices_temp_expanded = self.img_expander(encoded_choices_temp_compressed) 
 
-        return encoded_choices_temp_expanded
+        return encoded_choices_temp_compressed, encoded_choices_temp_expanded
 
 
 class Generator(BaseNetwork):
@@ -102,7 +106,7 @@ class Generator(BaseNetwork):
         
         encoded_questions_and_contexts = self.encode_questions_and_contexts(input_data)
 
-        encoded_choices_temp_expanded = self.encode_choices(input_data)
+        encoded_choices_temp_compressed, encoded_choices_temp_expanded = self.encode_choices(input_data)
 
         # encoded_choices = encoded_choices_temp.view(
         #     *choices.shape[:2],
@@ -111,12 +115,12 @@ class Generator(BaseNetwork):
 
         relevance_temp = nn.functional.cosine_similarity(
             encoded_questions_and_contexts, 
-            encoded_choices_temp_expanded, 
+            encoded_choices_temp_compressed, 
             dim=1
         )
 
         relevance_logits = relevance_temp.view(
-            *choices.shape[:2],
+            *input_data["choices"].shape[:2],
             *relevance_temp.shape[1:]
         )           # list of vectors - one for each entry in the batch
 
@@ -136,21 +140,23 @@ class Discriminator(BaseNetwork):
 
         encoded_questions_and_contexts = self.encode_questions_and_contexts(input_data)
         
-        encoded_choices_temp_expanded = self.encode_choices(input_data)
+        encoded_choices_temp_compressed, encoded_choices_temp_expanded = self.encode_choices(input_data)
 
         # encoded_choices = encoded_choices_temp.view(
         #     *choices.shape[:2],
         #     *encoded_choices_temp.shape[1:]
         # )
 
+        # print()
+
         relevance_temp = nn.functional.cosine_similarity(
             encoded_questions_and_contexts, 
-            encoded_choices_temp_expanded, 
+            encoded_choices_temp_compressed, 
             dim=1
         )
 
         relevance_logits = relevance_temp.view(
-            *choices.shape[:2],
+            *input_data["choices"].shape[:2],
             *relevance_temp.shape[1:]
         )           # list of vectors - one for each entry in the batch
 
