@@ -3,6 +3,7 @@ import torch
 import torchvision
 import torch.nn as nn
 import random
+import progressbar
 
 import os
 from   torch.utils.data import Dataset
@@ -152,16 +153,20 @@ net = Network().to(device=device)
 
 def generate_features():
 
-    for i, batch in enumerate(val_dataloader, 0):
+    widgets=[
+        ' [', progressbar.Timer(), '] ',
+        progressbar.Bar(),
+        ' (', progressbar.ETA(), ') ',
+    ]
+
+    for i, batch in progressbar.progressbar(enumerate(val_dataloader, 0), widgets=widgets):
         encoded_images = net(batch)
         for j, img_path in enumerate(batch["paths"]):
-            print("encoded_images[j]:", encoded_images[j].shape)
             torch.save(encoded_images[j], os.path.join(opt.outf, "val", img_path))
 
     for i, batch in enumerate(train_dataloader, 0):
         encoded_images = net(batch)
         for j, img_path in enumerate(batch["paths"]):
-            print("encoded_images[j]:", encoded_images[j].shape)
             torch.save(encoded_images[j], os.path.join(opt.outf, "train", img_path))
 
 if __name__ == "__main__":
