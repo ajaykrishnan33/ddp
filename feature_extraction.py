@@ -136,7 +136,7 @@ val_dataloader = torch.utils.data.DataLoader(
 class Network(nn.Module):
     
     def __init__(self):
-        super(BaseNetwork, self).__init__()
+        super(Network, self).__init__()
 
         img_encoder = torchvision.models.vgg16_bn(pretrained=opt.vgg_pretrained)
 
