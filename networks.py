@@ -125,8 +125,6 @@ class Generator(BaseNetwork):
         
         encoded_questions_and_contexts = self.encode_questions_and_contexts(input_data)
 
-        print("encoded_questions_and_contexts", encoded_questions_and_contexts.shape)
-
         encoded_choices_temp_compressed = self.encode_choices(input_data)
 
         # encoded_choices = encoded_choices_temp.view(
@@ -160,6 +158,8 @@ class Discriminator(BaseNetwork):
     def forward(self, input_data):
 
         encoded_questions_and_contexts = self.encode_questions_and_contexts(input_data)
+
+        print("encoded_questions_and_contexts", encoded_questions_and_contexts.shape)
         
         encoded_choices_temp_compressed = self.encode_choices(input_data)
 
