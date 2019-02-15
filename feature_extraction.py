@@ -111,7 +111,7 @@ def batch_collator(device):
     return _internal
 
 
-train_dataset = dataservices.ImageDataset(
+train_dataset = ImageDataset(
     "recipeqa/images/train/images-qa",
     transform=RescaleToTensorAndNormalize(224)
 )
@@ -122,7 +122,7 @@ train_dataloader = torch.utils.data.DataLoader(
     collate_fn=batch_collator(device=device)
 )
 
-val_dataset = dataservices.ImageDataset(
+val_dataset = ImageDataset(
     "recipeqa/images/val/images-qa",
     transform=RescaleToTensorAndNormalize(224)
 )
