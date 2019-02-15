@@ -69,13 +69,13 @@ class BaseNetwork(nn.Module):
 
         _, encoded_questions_seq = self.question_encoder(encoded_questions_single)  # finally a list of vectors
 
-        encoded_questions_seq = torch.squeeze(encoded_questions_seq, dim=1)
+        encoded_questions_seq = torch.squeeze(encoded_questions_seq.transpose(2,0).transpose(1,2), dim=1)
 
         contexts = input_data["contexts"]  # batch of context vector sets
 
         _, encoded_contexts = self.context_encoder(contexts)   # finally a list of vectors
 
-        encoded_contexts = torch.squeeze(encoded_contexts, dim=1)
+        encoded_contexts = torch.squeeze(encoded_contexts.transpose(2,0).transpose(1,2), dim=1)
 
         encoded_questions_and_contexts_temp = torch.cat((encoded_questions_seq, encoded_contexts), 1)
 
