@@ -19,7 +19,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--workers', type=int, help='number of data loading workers', default=0)
 parser.add_argument('--batchSize', type=int, default=64, help='input batch size')
 parser.add_argument('--cuda', action='store_true', help='enables cuda')
-parser.add_argument('--outf', required=True, default='recipeqa/features', help='folder to output image features')
+parser.add_argument('--outf', default='recipeqa/features', help='folder to output image features')
 parser.add_argument('--manualSeed', type=int, help='manual seed')
 
 opt = parser.parse_args()
