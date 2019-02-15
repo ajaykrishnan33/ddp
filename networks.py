@@ -89,21 +89,25 @@ class BaseNetwork(nn.Module):
         # choices_temp = choices.view(-1, *choices.shape[2:])
 
         encoded_choices_temp = []
-        for choice in choices:
-            encoded_choices_temp.append(self.choice_img_encoder(choice))
+        for choice_list in choices:
+            encoded_choices_temp.append(self.choice_img_encoder(choice_list))
 
-        encoded_choices_temp = torch.stack((*encoded_choices_temp,))
+        # encoded_choices_temp = torch.stack((*encoded_choices_temp,))
 
         # using a set of weights different from question images for choice images
         # encoded_choices_temp = self.choice_img_encoder(choices_temp)  # a list with (batch_size * choice_list_size) number of vectors
 
         # re-using same compressor as used for images.
-        encoded_choices_temp_compressed = self.img_compressor(encoded_choices_temp)
+        # encoded_choices_temp_compressed = self.img_compressor(encoded_choices_temp)
+
+        encoded_choices_temp_compressed = []
+        for encoded_choice_list in encoded_choices_temp:
+            encoded_choices_temp_compressed.append(self.img_compressor(encoded_choice_list))
 
         # will be used for autoencoder loss by comparing against encoded_choices_temp
-        encoded_choices_temp_expanded = self.img_expander(encoded_choices_temp_compressed) 
+        # encoded_choices_temp_expanded = self.img_expander(encoded_choices_temp_compressed) 
 
-        return encoded_choices_temp_compressed, encoded_choices_temp_expanded
+        return torch.stack((*encoded_choices_temp_compressed,))
 
 
 class Generator(BaseNetwork):
@@ -112,7 +116,7 @@ class Generator(BaseNetwork):
         
         encoded_questions_and_contexts = self.encode_questions_and_contexts(input_data)
 
-        encoded_choices_temp_compressed, encoded_choices_temp_expanded = self.encode_choices(input_data)
+        encoded_choices_temp_compressed = self.encode_choices(input_data)
 
         # encoded_choices = encoded_choices_temp.view(
         #     *choices.shape[:2],
@@ -146,7 +150,7 @@ class Discriminator(BaseNetwork):
 
         encoded_questions_and_contexts = self.encode_questions_and_contexts(input_data)
         
-        encoded_choices_temp_compressed, encoded_choices_temp_expanded = self.encode_choices(input_data)
+        encoded_choices_temp_compressed = self.encode_choices(input_data)
 
         # encoded_choices = encoded_choices_temp.view(
         #     *choices.shape[:2],
