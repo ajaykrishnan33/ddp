@@ -86,11 +86,11 @@ class BaseNetwork(nn.Module):
     def encode_choices(self, input_data):
         choices = input_data["choices"]  # batch of "choice_list"s
 
-        # choices_temp = choices.view(-1, *choices.shape[2:])
+        choices_temp = choices.view(-1, *choices.shape[2:])
 
-        encoded_choices_temp = []
-        for choice_list in choices:
-            encoded_choices_temp.append(self.choice_img_encoder(choice_list))
+        # encoded_choices_temp = []
+        # for choice_list in choices:
+        #     encoded_choices_temp.append(self.choice_img_encoder(choice_list))
 
         # encoded_choices_temp = torch.stack((*encoded_choices_temp,))
 
@@ -101,8 +101,14 @@ class BaseNetwork(nn.Module):
         # encoded_choices_temp_compressed = self.img_compressor(encoded_choices_temp)
 
         encoded_choices_temp_compressed = []
-        for encoded_choice_list in encoded_choices_temp:
-            encoded_choices_temp_compressed.append(self.img_compressor(encoded_choice_list))
+        for choice in choices_temp:
+            encoded_choices_temp_compressed.append(
+                self.img_compressor(
+                    self.choice_img_encoder(
+                        choice.unsqueeze(dim=0)
+                    )
+                )
+            )
 
         # will be used for autoencoder loss by comparing against encoded_choices_temp
         # encoded_choices_temp_expanded = self.img_expander(encoded_choices_temp_compressed) 
