@@ -89,7 +89,7 @@ class RescaleToTensorAndNormalize(object):
         img = torch.from_numpy(img)
         img = normalize(img)
 
-        return torch.stack((*final_img_list,)).to(torch.float)
+        return img.to(torch.float)
 
     def __call__(self, sample):
         return self.process_img(sample)
