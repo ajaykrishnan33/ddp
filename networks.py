@@ -115,7 +115,7 @@ class BaseNetwork(nn.Module):
                 relevance = nn.functional.cosine_similarity(
                     encoded_questions_and_contexts[i].unsqueeze(dim=0), 
                     encoded_choice
-                )
+                ).squeeze(dim=-1)
 
                 relevance_logits.append(relevance)
             relevance_logits = torch.stack((*relevance_logits,), dim=0)
