@@ -113,6 +113,9 @@ class BaseNetwork(nn.Module):
         # will be used for autoencoder loss by comparing against encoded_choices_temp
         # encoded_choices_temp_expanded = self.img_expander(encoded_choices_temp_compressed) 
 
+        encoded_choices_temp_compressed = torch.stack((*encoded_choices_temp_compressed,))
+        print("encoded_choices_temp_compressed", encoded_choices_temp_compressed.shape)
+
         return torch.stack((*encoded_choices_temp_compressed,))
 
 
