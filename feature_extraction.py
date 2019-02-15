@@ -138,7 +138,7 @@ class Network(nn.Module):
     def __init__(self):
         super(Network, self).__init__()
 
-        img_encoder = torchvision.models.vgg16_bn(pretrained=opt.vgg_pretrained)
+        img_encoder = torchvision.models.vgg16_bn(pretrained=True)
 
         img_encoder.classifier = nn.Sequential(*list(img_encoder.classifier)[:4]) 
 
