@@ -148,7 +148,7 @@ class Network(nn.Module):
         encoded_images = self.img_encoder(batch["imgs"])
         return encoded_images
 
-net = Network()
+net = Network().to(device=device)
 
 def generate_features():
 
