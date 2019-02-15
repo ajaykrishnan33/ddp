@@ -108,12 +108,13 @@ class BaseNetwork(nn.Module):
                     self.choice_img_encoder(
                         choice.unsqueeze(dim=0)
                     )
-                ).squeeze(dim=1)
-                
+                )
+
+                print("Encoded choice:", encoded_choice.shape)
+                print("encoded_questions_and_contexts[i]:", encoded_questions_and_contexts[i].shape)
                 relevance = nn.functional.cosine_similarity(
-                    encoded_questions_and_contexts[i], 
-                    encoded_choice, 
-                    dim=1
+                    encoded_questions_and_contexts[i].unsqueeze(dim=0), 
+                    encoded_choice
                 )
 
                 relevance_logits.append(relevance)
