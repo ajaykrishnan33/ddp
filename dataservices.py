@@ -51,15 +51,15 @@ class RecipeQADataset(Dataset):
 
         ret["context"] = self.embeddings.get_vectors(document_ids)
 
-        ret["choice_list"] = [
+        ret["choice_list"] = torch.stack((*[
             # io.imread(os.path.join(self.root_dir, img)) for img in data_item["choice_list"]
             torch.load(os.path.join(self.root_dir, img)) for img in data_item["choice_list"]
-        ]
+        ],))
 
-        ret["question"] = [
+        ret["question"] = torch.stack((*[
             # io.imread(os.path.join(self.root_dir, img)) for img in data_item["question"]
             torch.load(os.path.join(self.root_dir, img)) for img in data_item["question"]
-        ]
+        ],))
 
         ret["answer"] = data_item["answer"]
 
