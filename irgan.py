@@ -102,7 +102,7 @@ def fscore(probabilities, labels):
     recall = true_positives / (true_positives + false_negatives + epsilon)
     fscore = (2 * precision * recall) / (precision + recall + epsilon)
 
-    print("True positives: {}, False positives: {}, False negatives: {}", true_positives, false_positives, false_negatives)
+    print("True positives: {}, False positives: {}, False negatives: {}".format(true_positives, false_positives, false_negatives))
 
     return precision, recall, fscore
 
