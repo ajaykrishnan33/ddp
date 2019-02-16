@@ -121,7 +121,7 @@ def pre_train(train_netG, train_netD):
                 print(
                     "Pretraining discriminator Epoch: {}, batch_num: {}, loss: {}, precision: {}, recall: {}, fscore: {}"
                     .format(
-                        epoch, i, loss, correct_answers, labels.size(0)*labels.size(1), 
+                        epoch, i, loss, 
                         *fscore(probabilities, labels)
                     )
                 )
