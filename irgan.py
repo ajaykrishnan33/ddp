@@ -103,7 +103,7 @@ def pre_train(train_netG, train_netD):
                 loss.backward()
                 optimizerD.step()
 
-                correct_answers = (torch.round(logits)==labels).sum().item()
+                correct_answers = (torch.round(probabilities)==labels).sum().item()
 
                 print("Pretraining discriminator Epoch: {}, batch_num: {}, loss: {}, answered: {}/{}".format(epoch, i, loss, correct_answers, labels.size(0)*labels.size(1)))
 
@@ -117,9 +117,9 @@ def pre_train(train_netG, train_netD):
                 loss.backward()
                 optimizerG.step()
 
-                correct_answers = (torch.round(logits)==labels).sum().item()
+                # correct_answers = (torch.round(logits)==labels).sum().item()
 
-                print("Pretraining generator Epoch: {}, batch_num: {}, loss: {}, answered: {}/{}".format(epoch, i, loss, correct_answers, labels.size(0)*labels.size(1)))
+                # print("Pretraining generator Epoch: {}, batch_num: {}, loss: {}, answered: {}/{}".format(epoch, i, loss, correct_answers, labels.size(0)*labels.size(1)))
 
 def generate_samples(batch, distributions, num_samples):
     samples = []
