@@ -96,13 +96,13 @@ def fscore(probabilities, labels):
     false_positives = ((torch.round(probabilities)==1.0)*(labels==0.0)).sum().item()
     false_negatives = ((torch.round(probabilities)==0.0)*(labels==1.0)).sum().item()
 
-    epsilon = 0.1
+    epsilon = 0.01
 
     precision = true_positives / (true_positives + false_positives + epsilon)
     recall = true_positives / (true_positives + false_negatives + epsilon)
     fscore = (2 * precision * recall) / (precision + recall + epsilon)
 
-    return fscore
+    return precision, recall, fscore
 
 def pre_train(train_netG, train_netD):
 
@@ -119,10 +119,10 @@ def pre_train(train_netG, train_netD):
                 correct_answers = (torch.round(probabilities)==labels).sum().item()
 
                 print(
-                    "Pretraining discriminator Epoch: {}, batch_num: {}, loss: {}, answered: {}/{}, fscore: {}"
+                    "Pretraining discriminator Epoch: {}, batch_num: {}, loss: {}, precision: {}, recall: {}, fscore: {}"
                     .format(
                         epoch, i, loss, correct_answers, labels.size(0)*labels.size(1), 
-                        fscore(probabilities, labels)
+                        *fscore(probabilities, labels)
                     )
                 )
 
