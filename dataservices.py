@@ -26,10 +26,9 @@ class Doc2Vec:
 
 class RecipeQADataset(Dataset):
     
-    def __init__(self, csv_file, root_dir, embeddings, transform=None):
+    def __init__(self, csv_file, root_dir, embeddings):
         self.data_list = ujson.load(open(csv_file, "r"))
         self.root_dir = root_dir
-        self.transform = transform
         self.embeddings = embeddings
         # self.vocab = load_vocabulary()
 
@@ -53,52 +52,18 @@ class RecipeQADataset(Dataset):
         ret["context"] = self.embeddings.get_vectors(document_ids)
 
         ret["choice_list"] = [
-            io.imread(os.path.join(self.root_dir, img)) for img in data_item["choice_list"]
+            # io.imread(os.path.join(self.root_dir, img)) for img in data_item["choice_list"]
+            torch.load(os.path.join(self.root_dir, img)) for img in data_item["choice_list"]
         ]
 
         ret["question"] = [
-            io.imread(os.path.join(self.root_dir, img)) for img in data_item["question"]
+            # io.imread(os.path.join(self.root_dir, img)) for img in data_item["question"]
+            torch.load(os.path.join(self.root_dir, img)) for img in data_item["question"]
         ]
 
         ret["answer"] = data_item["answer"]
 
-        if self.transform:
-            ret = self.transform(ret)
-
         return ret
-
-class RescaleToTensorAndNormalize(object):
-
-    def __init__(self, output_size):
-        self.output_size = output_size
-
-    def process_img_list(self, img_list):
-        normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-        final_img_list = []
-        for img in img_list:
-            img = transform.resize(img, (self.output_size, self.output_size))
-            try:
-                img = img.transpose((2,0,1))
-            except Exception as e:
-                if img.shape==(self.output_size, self.output_size):
-                    print("Greyscale instead of color")
-                    img = np.stack((img,)*3, axis=0)
-                else:
-                    print("Error:", img.shape)
-                    raise e
-            img = torch.from_numpy(img)
-            img = normalize(img)
-            final_img_list.append(img)
-
-        return torch.stack((*final_img_list,)).to(torch.float)
-
-    def __call__(self, sample):
-
-        sample["choice_list"] = self.process_img_list(sample["choice_list"])
-
-        sample["question"] = self.process_img_list(sample["question"])
-
-        return sample
 
 def batch_collator(device):
     

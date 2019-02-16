@@ -6,11 +6,11 @@ class BaseNetwork(nn.Module):
     def __init__(self, opt):
         super(BaseNetwork, self).__init__()
 
-        img_encoder = torchvision.models.vgg16_bn(pretrained=opt.vgg_pretrained)
+        # img_encoder = torchvision.models.vgg16_bn(pretrained=opt.vgg_pretrained)
 
-        img_encoder.classifier = nn.Sequential(*list(img_encoder.classifier)[:4]) 
+        # img_encoder.classifier = nn.Sequential(*list(img_encoder.classifier)[:4]) 
 
-        self.question_img_encoder = img_encoder   # final size will be 4096
+        # self.question_img_encoder = img_encoder   # final size will be 4096
 
         ## IMAGE AUTO ENCODER BEGINS ##
         self.img_compressor = nn.Sequential(
@@ -48,16 +48,16 @@ class BaseNetwork(nn.Module):
 
         # img_encoder.classifier = nn.Sequential(*list(img_encoder.classifier)[:4]) 
 
-        self.choice_img_encoder = img_encoder
+        # self.choice_img_encoder = img_encoder
 
     def encode_questions_and_contexts(self, input_data):
         questions = input_data["questions"]  # batch of question arrays
 
         questions_temp = questions.view(-1, *questions.shape[2:])
 
-        encoded_questions_temp = self.question_img_encoder(questions_temp)
+        # encoded_questions_temp = self.question_img_encoder(questions_temp)
 
-        encoded_questions_temp_compressed = self.img_compressor(encoded_questions_temp)
+        encoded_questions_temp_compressed = self.img_compressor(questions_temp)
 
         # will use this for autoencoder loss by comparing against encoded_questions_temp
         # encoded_questions_temp_expanded = self.img_expander(encoded_questions_temp_compressed)
@@ -105,9 +105,10 @@ class BaseNetwork(nn.Module):
             relevance_logits = []
             for choice in choice_list:
                 encoded_choice = self.img_compressor(
-                    self.choice_img_encoder(
-                        choice.unsqueeze(dim=0)
-                    )
+                    # self.choice_img_encoder(
+                    #     choice.unsqueeze(dim=0)
+                    # )
+                    choice.unsqueeze(dim=0)
                 )
 
                 print("Encoded choice:", encoded_choice.shape)
