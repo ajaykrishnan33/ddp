@@ -19,7 +19,7 @@ def load_vocabulary():
 
 class Doc2Vec:
     def __init__(self, embeddings_file_path):
-        self.embeddings = np.loadtxt(embeddings_file_path, delimiter=",", skiprows=1)
+        self.embeddings = np.loadtxt(embeddings_file_path, delimiter=",")
 
     def get_vectors(self, indices):
         return torch.from_numpy(self.embeddings[indices]).to(torch.float)
