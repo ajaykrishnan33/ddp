@@ -111,8 +111,6 @@ class BaseNetwork(nn.Module):
                     choice.unsqueeze(dim=0)
                 )
 
-                print("Encoded choice:", encoded_choice.shape)
-                print("encoded_questions_and_contexts[i]:", encoded_questions_and_contexts[i].shape)
                 relevance = nn.functional.cosine_similarity(
                     encoded_questions_and_contexts[i].unsqueeze(dim=0), 
                     encoded_choice
@@ -129,7 +127,6 @@ class BaseNetwork(nn.Module):
         # encoded_choices_temp_expanded = self.img_expander(encoded_choices_temp_compressed) 
 
         # encoded_choices_temp_compressed = torch.stack((*encoded_choices_temp_compressed,))
-        # print("encoded_choices_temp_compressed", encoded_choices_temp_compressed.shape)
 
         return relevance_logits
 
@@ -173,8 +170,6 @@ class Discriminator(BaseNetwork):
     def forward(self, input_data):
 
         encoded_questions_and_contexts = self.encode_questions_and_contexts(input_data)
-
-        print("encoded_questions_and_contexts", encoded_questions_and_contexts.shape)
         
         relevance_logits = self.encode_choices(input_data, encoded_questions_and_contexts)
 
