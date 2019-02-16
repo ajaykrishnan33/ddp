@@ -92,9 +92,9 @@ optimizerD = optim.Adam(netD.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 optimizerG = optim.Adam(netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 
 def fscore(probabilities, labels):
-    true_positives = ((torch.round(probabilities)==1.0)*(labels==1.0)).sum().item()
-    false_positives = ((torch.round(probabilities)==1.0)*(labels==0.0)).sum().item()
-    false_negatives = ((torch.round(probabilities)==0.0)*(labels==1.0)).sum().item()
+    true_positives = float(((torch.round(probabilities)==1.0)*(labels==1.0)).sum().item())
+    false_positives = float(((torch.round(probabilities)==1.0)*(labels==0.0)).sum().item())
+    false_negatives = float(((torch.round(probabilities)==0.0)*(labels==1.0)).sum().item())
 
     epsilon = 0.01
 
