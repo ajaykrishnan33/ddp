@@ -91,6 +91,17 @@ criterionG = nn.CrossEntropyLoss()   # logsoftmax + multi-class cross entropy
 optimizerD = optim.Adam(netD.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 optimizerG = optim.Adam(netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 
+def fscore(probabilities, labels):
+    true_positives = ((probabilities==1.0)*(labels==1.0)).sum().item()
+    false_positives = ((probabilities==1.0)*(labels==0.0)).sum().item()
+    false_negatives = ((probabilities==0.0)*(labels==1.0)).sum().item()
+
+    precision = true_positives / (true_positives + false_positives)
+    recall = true_positives / (true_positives + false_negatives)
+    fscore = (2 * precision * recall) / (precision + recall)
+
+    return fscore
+
 def pre_train(train_netG, train_netD):
 
     if train_netD:
@@ -105,7 +116,13 @@ def pre_train(train_netG, train_netD):
 
                 correct_answers = (torch.round(probabilities)==labels).sum().item()
 
-                print("Pretraining discriminator Epoch: {}, batch_num: {}, loss: {}, answered: {}/{}".format(epoch, i, loss, correct_answers, labels.size(0)*labels.size(1)))
+                print(
+                    "Pretraining discriminator Epoch: {}, batch_num: {}, loss: {}, answered: {}/{}, fscore: {}"
+                    .format(
+                        epoch, i, loss, correct_answers, labels.size(0)*labels.size(1), 
+                        fscore(probabilities, labels)
+                    )
+                )
 
     if train_netG:
         for epoch in tqdm(range(opt.pre_niter)):
