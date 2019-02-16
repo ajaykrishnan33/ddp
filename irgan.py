@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.optim as optim
 import random
 import numpy as np
+from tqdm import tqdm
 
 import dataservices
 import networks
@@ -94,7 +95,7 @@ optimizerG = optim.Adam(netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 def pre_train(train_netG, train_netD):
 
     if train_netD:
-        for epoch in range(opt.niter):
+        for epoch in tqdm(range(opt.niter)):
             for i, batch in enumerate(train_dataloader, 0):
                 print("Pretraining discriminator Epoch: {}, batch_num: {}".format(epoch, i))
                 netD.zero_grad()
@@ -105,7 +106,7 @@ def pre_train(train_netG, train_netD):
                 optimizerD.step()
 
     if train_netG:
-        for epoch in range(opt.niter):
+        for epoch in tqdm(range(opt.niter)):
             for i, batch in enumerate(train_dataloader, 0):
                 print("Pretraining generator Epoch: {}, batch_num: {}".format(epoch, i))
                 netG.zero_grad()
@@ -150,7 +151,7 @@ def training():
 
     pre_train(opt.netG == '', opt.netD == '')
 
-    for epoch in range(opt.niter):
+    for epoch in tqdm(range(opt.niter)):
         for g in range(opt.g_epochs):
             for i, batch in enumerate(train_dataloader, 0):
                 print("Training Generator Epoch:{}, batch:{}".format(epoch, i))
