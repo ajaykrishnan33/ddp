@@ -19,6 +19,7 @@ parser.add_argument('--workers', type=int, help='number of data loading workers'
 parser.add_argument('--batchSize', type=int, default=64, help='input batch size')
 parser.add_argument('--imageSize', type=int, default=64, help='the height / width of the input image to network')
 parser.add_argument('--nz', type=int, default=100, help='size of the latent z vector')
+parser.add_argument('--pre_niter', type=int, default=10, help='total number of epochs to train for')
 parser.add_argument('--niter', type=int, default=25, help='total number of epochs to train for')
 parser.add_argument('--g_epochs', type=int, default=1, help='number of epochs to train Generator for')
 parser.add_argument('--d_epocs', type=int, default=1, help='number of epochs to train Discriminator for')
@@ -93,7 +94,7 @@ optimizerG = optim.Adam(netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 def pre_train(train_netG, train_netD):
 
     if train_netD:
-        for epoch in tqdm(range(opt.niter)):
+        for epoch in tqdm(range(opt.pre_niter)):
             for i, batch in tqdm(enumerate(train_dataloader, 0), total=len(train_dataloader)):
                 netD.zero_grad()
                 logits, probabilities = netD(batch)
@@ -101,10 +102,13 @@ def pre_train(train_netG, train_netD):
                 loss = criterionD(logits, labels)
                 loss.backward()
                 optimizerD.step()
-                print("Pretraining discriminator Epoch: {}, batch_num: {}, loss: {}".format(epoch, i, loss))
+
+                correct_answers = (torch.round(logits)==labels).sum().item()
+
+                print("Pretraining discriminator Epoch: {}, batch_num: {}, loss: {}, answered: {}/{}".format(epoch, i, loss, correct_answers, y.size(0)*y.size(1)))
 
     if train_netG:
-        for epoch in tqdm(range(opt.niter)):
+        for epoch in tqdm(range(opt.pre_niter)):
             for i, batch in tqdm(enumerate(train_dataloader, 0), total=len(train_dataloader)):
                 netG.zero_grad()
                 logits, distributions = netG(batch)
@@ -112,7 +116,10 @@ def pre_train(train_netG, train_netD):
                 loss = criterionG(logits, expected_outputs)
                 loss.backward()
                 optimizerG.step()
-                print("Pretraining generator Epoch: {}, batch_num: {}, loss: {}".format(epoch, i, loss))
+
+                correct_answers = (torch.round(logits)==labels).sum().item()
+
+                print("Pretraining generator Epoch: {}, batch_num: {}, loss: {}, answered: {}/{}".format(epoch, i, loss, correct_answers, y.size(0)*y.size(1)))
 
 def generate_samples(batch, distributions, num_samples):
     samples = []
