@@ -96,9 +96,11 @@ def fscore(probabilities, labels):
     false_positives = ((probabilities==1.0)*(labels==0.0)).sum().item()
     false_negatives = ((probabilities==0.0)*(labels==1.0)).sum().item()
 
-    precision = true_positives / (true_positives + false_positives)
-    recall = true_positives / (true_positives + false_negatives)
-    fscore = (2 * precision * recall) / (precision + recall)
+    epsilon = 0.1
+
+    precision = true_positives / (true_positives + false_positives + epsilon)
+    recall = true_positives / (true_positives + false_negatives + epsilon)
+    fscore = (2 * precision * recall) / (precision + recall + epsilon)
 
     return fscore
 
