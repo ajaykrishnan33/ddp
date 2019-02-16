@@ -54,8 +54,7 @@ train_embeddings = dataservices.Doc2Vec(
 train_dataset = dataservices.RecipeQADataset(
     "recipeqa/new_train_cleaned.json", 
     "recipeqa/features/train",
-    train_embeddings,
-    transform=dataservices.RescaleToTensorAndNormalize(224)
+    train_embeddings
 )
 
 train_dataloader = torch.utils.data.DataLoader(
@@ -71,8 +70,7 @@ train_dataloader = torch.utils.data.DataLoader(
 # val_dataset = dataservices.RecipeQADataset(
 #     "recipeqa/new_val_cleaned.json", 
 #     "recipeqa/features/val", 
-#     val_embeddings,
-#     transform=dataservices.RescaleToTensorAndNormalize(224)
+#     val_embeddings
 # )
 # val_dataloader = torch.utils.data.DataLoader(
 #     val_dataset, batch_size=opt.batchSize,
