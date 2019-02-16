@@ -94,7 +94,7 @@ def pre_train(train_netG, train_netD):
 
     if train_netD:
         for epoch in tqdm(range(opt.niter)):
-            for i, batch in tqdm(enumerate(train_dataloader, 0)):
+            for i, batch in tqdm(enumerate(train_dataloader, 0), total=len(train_dataloader)):
                 # print("Pretraining discriminator Epoch: {}, batch_num: {}".format(epoch, i))
                 netD.zero_grad()
                 logits, probabilities = netD(batch)
@@ -105,7 +105,7 @@ def pre_train(train_netG, train_netD):
 
     if train_netG:
         for epoch in tqdm(range(opt.niter)):
-            for i, batch in tqdm(enumerate(train_dataloader, 0)):
+            for i, batch in tqdm(enumerate(train_dataloader, 0), total=len(train_dataloader)):
                 # print("Pretraining generator Epoch: {}, batch_num: {}".format(epoch, i))
                 netG.zero_grad()
                 logits, distributions = netG(batch)
@@ -151,7 +151,7 @@ def training():
 
     for epoch in tqdm(range(opt.niter)):
         for g in range(opt.g_epochs):
-            for i, batch in enumerate(train_dataloader, 0):
+            for i, batch in tqdm(enumerate(train_dataloader, 0), total=len(train_dataloader)):
                 print("Training Generator Epoch:{}, batch:{}".format(epoch, i))
                 netG.zero_grad()
                 
@@ -204,7 +204,7 @@ def training():
                 optimizerG.step()
 
         for d in range(opt.d_epochs):
-            for batch in enumerate(train_dataloader, 0):
+            for batch in tqdm(enumerate(train_dataloader, 0), total=len(train_dataloader)):
                 print("Training Discriminator Epoch:{}, batch:{}".format(epoch, i))
                 netD.zero_grad()
                 
