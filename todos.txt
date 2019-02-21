@@ -66,6 +66,7 @@ IRGAN model will accept the recipe steps (text context)  + images (with one of t
 		- Apply the sigmoid function to the output numeric score to get a value in the [0-1] range. This will make it look like a probability score.
 		- For every image choice, we have a 0-1 label indicating whether it really is the correct answer. Use this to compute the loss for the discriminator model.
 
+
 8. Adversarial Training
 	For E epochs:
 		For g steps:
@@ -78,6 +79,16 @@ IRGAN model will accept the recipe steps (text context)  + images (with one of t
 			- The Discriminator accrues a loss for every misclassified image and its weights are updated using this loss.
 		Validation loss is computed here.
 
+Update: 16th February
+1. Had to pre-extract features using VGG since loading the whole network at once was severely restricting the size of the batches in the training process due to memory limitations. The disadvantage of this solution is that it won't be possible to continue training the VGG params for this task.
+2. Faced another problem with pre-training the discriminator: the classes are unbalanced so the model is simply giving 0 as the answer independent of the input. 
+	One possible solution is to randomly over-sample the positive samples so that the two classes are almost balanced.
+	Another solution is to take pairs of samples - one positive and the other negative (randomly chosen) and get the model to predict which one is more relevant - maximize the difference between their cosine similarities with the encoding of the question. (I think IRGAN uses this.)
+		This solution will require changes to be made to the data loading process, the discriminator and the generator as well. 
+		For every question, generate pairs (A, B) from the choice list, where A is the correct answer and B is a wrong answer. In total, for every question, there will be 19 such pairs.
+		Every dataset entry will consist of a question (consisting of the question images and the context) and an answer pair of the form (A,B).
+		The discriminator takes as input one dataset entry and computes the cosine similarity of the question encoding with each answer encoding. The difference between the cosine similarity of values of A and B is computed and maximized by the training process.
+		The generator takes as input one dataset entry, takes the less relevant image B and generates a probability distribution over the choice list of an image being more relevant to the question than B - basically trying to mimic (A, B).
 
 
 Idea:
