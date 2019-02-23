@@ -10,7 +10,7 @@ from skimage import io, transform
 import torch.multiprocessing
 torch.multiprocessing.set_sharing_strategy('file_system')
 
-NUM_CHOICES = 4
+NUM_CHOICES = 20
 
 def load_vocabulary():
     with open("recipeqa/vocab_clean.txt", "r") as f:
