@@ -114,6 +114,10 @@ def pre_train(train_netG, train_netD):
                 netD.zero_grad()
                 logits, probabilities = netD(batch)
                 labels = torch.full((len(batch),), 1).to(device)
+
+                print("logits", logits.shape)
+                print("labels", labels.shape)
+
                 loss = criterionD(logits, labels)
                 loss.backward()
                 optimizerD.step()

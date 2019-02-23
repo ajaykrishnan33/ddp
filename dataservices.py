@@ -35,7 +35,7 @@ class RecipeQADataset(Dataset):
         # self.vocab = load_vocabulary()
 
     def __len__(self):
-        return len(self.data_list)
+        return len(self.data_list)*(NUM_CHOICES-1)
 
     def __getitem__(self, idx):
         ret = {}
