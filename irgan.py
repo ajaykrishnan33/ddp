@@ -85,7 +85,7 @@ netD = networks.Discriminator(opt).to(device)
 def weights_init(m):
     pass
 
-criterionD = nn.BCEWithLogitsLoss()  # logsigmoid + binary cross entropy
+# criterionD = nn.BCEWithLogitsLoss()  # logsigmoid + binary cross entropy
 criterionG = nn.CrossEntropyLoss()   # logsoftmax + multi-class cross entropy
 
 optimizerD = optim.Adam(netD.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
@@ -112,19 +112,18 @@ def pre_train(train_netG, train_netD):
         for epoch in tqdm(range(opt.pre_niter)):
             for i, batch in tqdm(enumerate(train_dataloader, 0), total=len(train_dataloader)):
                 netD.zero_grad()
-                logits, probabilities = netD(batch)
-                labels = batch["answers"]
-                loss = criterionD(logits, labels)
+                loss = netD(batch)
+                # labels = batch["answers"]
+                # loss = criterionD(logits, labels)
                 loss.backward()
                 optimizerD.step()
 
-                correct_answers = (torch.round(probabilities)==labels).sum().item()
+                # correct_answers = (torch.round(probabilities)==labels).sum().item()
 
                 print(
-                    "Pretraining discriminator Epoch: {}, batch_num: {}, loss: {}, precision: {}, recall: {}, fscore: {}"
+                    "Pretraining discriminator Epoch: {}, batch_num: {}, loss: {}"
                     .format(
-                        epoch, i, loss, 
-                        *fscore(probabilities, labels)
+                        epoch, i, loss
                     )
                 )
 

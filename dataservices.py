@@ -10,6 +10,8 @@ from skimage import io, transform
 import torch.multiprocessing
 torch.multiprocessing.set_sharing_strategy('file_system')
 
+NUM_CHOICES = 4
+
 def load_vocabulary():
     with open("recipeqa/vocab_clean.txt", "r") as f:
         vocab = {}
@@ -37,7 +39,11 @@ class RecipeQADataset(Dataset):
 
     def __getitem__(self, idx):
         ret = {}
-        data_item = self.data_list[idx]
+
+        q_id = idx/(NUM_CHOICES-1)
+        a_id = idx%(NUM_CHOICES-1)
+
+        data_item = self.data_list[q_id]
 
         # ret["context"] = [
         #     [
@@ -62,6 +68,7 @@ class RecipeQADataset(Dataset):
         ],))
 
         ret["answer"] = data_item["answer"]
+        ret["wrong"] = a_id
 
         return ret
 
@@ -84,15 +91,15 @@ def batch_collator(device):
             batch_first = True
         ).to(device)  # batch of "choice_list"s
 
-        answers = torch.full((len(batch), choices.size(1)), 0).to(device)
-        answer_indices = [ x["answer"] for x in batch ]  # batch of "answers"s
-        answers[range(len(batch)), answer_indices] = 1  
+        answers = torch.tensor([x["answer"] for x in batch])
+        wrongs = torch.tensor([x["wrong"] for x in batch])
 
         final_batch = {
             "questions": questions,
             "contexts": contexts,
             "choices": choices,
             "answers": answers,
+            "wrongs": wrongs,
             "size": len(batch),
         }
 

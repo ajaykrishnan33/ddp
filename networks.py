@@ -6,12 +6,6 @@ class BaseNetwork(nn.Module):
     def __init__(self, opt):
         super(BaseNetwork, self).__init__()
 
-        # img_encoder = torchvision.models.vgg16_bn(pretrained=opt.vgg_pretrained)
-
-        # img_encoder.classifier = nn.Sequential(*list(img_encoder.classifier)[:4]) 
-
-        # self.question_img_encoder = img_encoder   # final size will be 4096
-
         ## IMAGE AUTO ENCODER BEGINS ##
         self.img_compressor = nn.Sequential(
             nn.Linear(4096, 1024),
@@ -42,13 +36,6 @@ class BaseNetwork(nn.Module):
         # the concatenation of the question and context vectors is transformed to size 100.
         self.combined_encoder = nn.Linear(200, 100) 
 
-        # the outputs of the two encoders above will be concatenated together
-
-        # img_encoder = torchvision.models.vgg16_bn(pretrained=opt.vgg_pretrained)
-
-        # img_encoder.classifier = nn.Sequential(*list(img_encoder.classifier)[:4]) 
-
-        # self.choice_img_encoder = img_encoder
 
     def encode_questions_and_contexts(self, input_data):
         questions = input_data["questions"]  # batch of question arrays
@@ -82,6 +69,9 @@ class BaseNetwork(nn.Module):
         encoded_questions_and_contexts = self.combined_encoder(encoded_questions_and_contexts_temp)
 
         return encoded_questions_and_contexts
+
+
+class Generator(BaseNetwork):
 
     def encode_choices(self, input_data, encoded_questions_and_contexts):
         choices = input_data["choices"]  # batch of "choice_list"s
@@ -130,30 +120,11 @@ class BaseNetwork(nn.Module):
 
         return relevance_logits
 
-
-class Generator(BaseNetwork):
-
     def forward(self, input_data):
         
         encoded_questions_and_contexts = self.encode_questions_and_contexts(input_data)
 
         relevance_logits = self.encode_choices(input_data, encoded_questions_and_contexts)
-
-        # encoded_choices = encoded_choices_temp.view(
-        #     *choices.shape[:2],
-        #     *encoded_choices_temp.shape[1:]
-        # )
-
-        # relevance_temp = nn.functional.cosine_similarity(
-        #     encoded_questions_and_contexts, 
-        #     encoded_choices_temp_compressed, 
-        #     dim=1
-        # )
-
-        # relevance_logits = relevance_temp.view(
-        #     *input_data["choices"].shape[:2],
-        #     *relevance_temp.shape[1:]
-        # )           # list of vectors - one for each entry in the batch
 
         relevance_distributions = nn.functional.softmax(relevance_logits, dim=1)
 
@@ -167,30 +138,33 @@ class Discriminator(BaseNetwork):
         super(Discriminator, self).__init__(*args, **kwargs)
         self.sigmoid = nn.Sigmoid()
 
+    def compute_score(self, img_list, encoded_questions_and_contexts):
+
+        encoded_imgs = self.img_compressor(img_list)
+
+        score = nn.functional.cosine_similarity(
+            encoded_questions_and_contexts, 
+            encoded_imgs
+        )
+
+        return score
+
     def forward(self, input_data):
 
-        encoded_questions_and_contexts = self.encode_questions_and_contexts(input_data)
-        
-        relevance_logits = self.encode_choices(input_data, encoded_questions_and_contexts)
+        encoded_questions_and_contexts = self.encode_questions_and_contexts(input_data)        
 
-        # encoded_choices_temp_compressed = self.encode_choices(input_data)
+        score_right = self.compute_score(
+            input_data["choices"][range(input_data["size"]), input_data["answers"]], 
+            encoded_questions_and_contexts
+        )
 
-        # encoded_choices = encoded_choices_temp.view(
-        #     *choices.shape[:2],
-        #     *encoded_choices_temp.shape[1:]
-        # )
+        score_wrong = self.compute_score(
+            input_data["choices"][range(input_data["size"]), input_data["wrongs"]], 
+            encoded_questions_and_contexts
+        )
 
-        # relevance_temp = nn.functional.cosine_similarity(
-        #     encoded_questions_and_contexts, 
-        #     encoded_choices_temp_compressed, 
-        #     dim=1
-        # )
+        z = score_right - score_wrong
 
-        # relevance_logits = relevance_temp.view(
-        #     *input_data["choices"].shape[:2],
-        #     *relevance_temp.shape[1:]
-        # )           # list of vectors - one for each entry in the batch
+        loss = ((1-z)>0)*(1-z)
 
-        relevance_probabilities = self.sigmoid(relevance_logits)
-
-        return relevance_logits, relevance_probabilities
+        return loss
