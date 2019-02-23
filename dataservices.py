@@ -40,7 +40,7 @@ class RecipeQADataset(Dataset):
     def __getitem__(self, idx):
         ret = {}
 
-        q_id = idx/(NUM_CHOICES-1)
+        q_id = idx//(NUM_CHOICES-1)
         a_id = idx%(NUM_CHOICES-1)
 
         data_item = self.data_list[q_id]
