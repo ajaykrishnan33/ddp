@@ -163,8 +163,9 @@ class Discriminator(BaseNetwork):
             encoded_questions_and_contexts
         )
 
-        z = score_right - score_wrong
+        logits = score_right - score_wrong
 
-        loss = ((1-z)>0)*(1-z)
+        probabilities = self.sigmoid(logits)
+        # loss = ((1-z)>0)*(1-z)
 
-        return loss
+        return logits, probabilities

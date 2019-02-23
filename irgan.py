@@ -85,7 +85,7 @@ netD = networks.Discriminator(opt).to(device)
 def weights_init(m):
     pass
 
-# criterionD = nn.BCEWithLogitsLoss()  # logsigmoid + binary cross entropy
+criterionD = nn.BCEWithLogitsLoss()  # logsigmoid + binary cross entropy
 criterionG = nn.CrossEntropyLoss()   # logsoftmax + multi-class cross entropy
 
 optimizerD = optim.Adam(netD.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
@@ -112,18 +112,19 @@ def pre_train(train_netG, train_netD):
         for epoch in tqdm(range(opt.pre_niter)):
             for i, batch in tqdm(enumerate(train_dataloader, 0), total=len(train_dataloader)):
                 netD.zero_grad()
-                loss = netD(batch)
-                # labels = batch["answers"]
-                # loss = criterionD(logits, labels)
+                logits, probabilities = netD(batch)
+                labels = torch.full((len(batch),), 1).to(device)
+                loss = criterionD(logits, labels)
                 loss.backward()
                 optimizerD.step()
 
                 # correct_answers = (torch.round(probabilities)==labels).sum().item()
 
                 print(
-                    "Pretraining discriminator Epoch: {}, batch_num: {}, loss: {}"
+                    "Pretraining discriminator Epoch: {}, batch_num: {}, loss: {}, precision: {}, recall: {}, fscore: {}"
                     .format(
-                        epoch, i, loss
+                        epoch, i, loss,
+                        *fscore(probabilities, labels)
                     )
                 )
 
@@ -132,7 +133,11 @@ def pre_train(train_netG, train_netD):
             for i, batch in tqdm(enumerate(train_dataloader, 0), total=len(train_dataloader)):
                 netG.zero_grad()
                 logits, distributions = netG(batch)
-                expected_outputs = batch["answers"]
+                # expected_outputs = batch["answers"]
+
+                expected_outputs = torch.full((len(batch), choices.size(1)), 0).to(device)
+                expected_outputs[range(len(batch)), answers] = 1  
+
                 loss = criterionG(logits, expected_outputs)
                 loss.backward()
                 optimizerG.step()

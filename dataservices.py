@@ -91,8 +91,8 @@ def batch_collator(device):
             batch_first = True
         ).to(device)  # batch of "choice_list"s
 
-        answers = torch.tensor([x["answer"] for x in batch])
-        wrongs = torch.tensor([x["wrong"] for x in batch])
+        answers = [x["answer"] for x in batch]
+        wrongs = [x["wrong"] for x in batch]
 
         final_batch = {
             "questions": questions,
