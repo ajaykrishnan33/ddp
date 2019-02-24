@@ -134,6 +134,7 @@ def pre_train(train_netG, train_netD):
 
             # validation booyeah!
             netD.eval()
+            print("\nEvaluation:")
             for i, batch in tqdm(enumerate(val_dataloader, 0), total=len(val_dataloader)):
                 with torch.no_grad():
                     logits, probabilities = netD(batch)
