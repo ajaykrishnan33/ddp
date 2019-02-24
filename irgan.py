@@ -60,24 +60,23 @@ train_dataset = dataservices.RecipeQADataset(
 
 train_dataloader = torch.utils.data.DataLoader(
     train_dataset, batch_size=opt.batchSize,
-    shuffle=False, num_workers=int(opt.workers),
+    shuffle=True, num_workers=int(opt.workers),
     collate_fn=dataservices.batch_collator(device=device)
 )
 
-# val_embeddings = dataservices.Doc2Vec(
-#     "paragraph-vectors/data/sentences_train_model.dbow_numnoisewords\
-#     .2_vecdim.100_batchsize.32_lr.0.001000_epoch.100_loss.0.781092.csv"
-# )  # change this to val
-# val_dataset = dataservices.RecipeQADataset(
-#     "recipeqa/new_val_cleaned.json", 
-#     "recipeqa/features/val", 
-#     val_embeddings
-# )
-# val_dataloader = torch.utils.data.DataLoader(
-#     val_dataset, batch_size=opt.batchSize,
-#     shuffle=True, num_workers=int(opt.workers),
-#     collate_fn=dataservices.batch_collator(device=device)
-# )
+val_embeddings = dataservices.Doc2Vec(
+    "paragraph-vectors/data/sentences_val_model.dbow_numnoisewords.2_vecdim.100_batchsize.32_lr.0.001000_epoch.100_loss.0.557238.csv",
+)
+val_dataset = dataservices.RecipeQADataset(
+    "recipeqa/new_val_cleaned.json", 
+    "recipeqa/features/val", 
+    val_embeddings
+)
+val_dataloader = torch.utils.data.DataLoader(
+    val_dataset, batch_size=opt.batchSize,
+    shuffle=True, num_workers=int(opt.workers),
+    collate_fn=dataservices.batch_collator(device=device)
+)
 
 netG = networks.Generator(opt).to(device)
 netD = networks.Discriminator(opt).to(device)
@@ -110,13 +109,14 @@ def pre_train(train_netG, train_netD):
 
     if train_netD:
         for epoch in tqdm(range(opt.pre_niter)):
+            netD.train()
             for i, batch in tqdm(enumerate(train_dataloader, 0), total=len(train_dataloader)):
                 netD.zero_grad()
                 logits, probabilities = netD(batch)
                 labels = torch.full((batch["size"],), 1).to(device)
 
-                print("logits", logits.shape)
-                print("labels", labels.shape)
+                # print("logits", logits.shape)
+                # print("labels", labels.shape)
 
                 loss = criterionD(logits, labels)
                 loss.backward()
@@ -124,13 +124,30 @@ def pre_train(train_netG, train_netD):
 
                 # correct_answers = (torch.round(probabilities)==labels).sum().item()
 
-                print(
-                    "Pretraining discriminator Epoch: {}, batch_num: {}, loss: {}, precision: {}, recall: {}, fscore: {}"
-                    .format(
-                        epoch, i, loss,
-                        *fscore(probabilities, labels)
+                # print(
+                #     "Pretraining discriminator Epoch: {}, batch_num: {}, loss: {}, precision: {}, recall: {}, fscore: {}"
+                #     .format(
+                #         epoch, i, loss,
+                #         *fscore(probabilities, labels)
+                #     )
+                # )
+
+            # validation booyeah!
+            netD.eval()
+            for i, batch in tqdm(enumerate(val_dataloader, 0), total=len(val_dataloader)):
+                with torch.no_grad():
+                    logits, probabilities = netD(batch)
+                    labels = torch.full((batch["size"],), 1).to(device)
+                    loss = criterionD(logits, labels)
+                    print(
+                        "Pretraining discriminator Epoch: {}, batch_num: {}, loss: {}, precision: {}, recall: {}, fscore: {}"
+                        .format(
+                            epoch, i, loss,
+                            *fscore(probabilities, labels)
+                        )
                     )
-                )
+
+
 
     if train_netG:
         for epoch in tqdm(range(opt.pre_niter)):
