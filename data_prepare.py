@@ -32,20 +32,23 @@ def set_remove(x, y):
 	return z
 
 full_train_image_set = set_remove(full_train_image_list, "@placeholder")
-full_val_image_set = set_remove(full_val_image_list, "@placeholder") - full_train_image_set
+full_val_image_set = set_remove(full_val_image_list, "@placeholder")
 
+full_val_image_list = list(full_val_image_set)
 full_train_image_list = list(full_train_image_set)
-full_image_list = full_train_image_list + list(full_val_image_set)
 
-reverse_index_mapping = {}
+reverse_index_mapping = {True:{}, False:{}}
 
-for i, img in enumerate(full_image_list):
-	reverse_index_mapping[img] = i
+for i, img in enumerate(full_train_image_list):
+	reverse_index_mapping[True][img] = i
+
+for i, img in enumerate(full_val_image_list):
+	reverse_index_mapping[False][img] = i
 
 # print(len(full_image_list), len(vcloze_data))
 
 def extend_choices_and_shuffle(choice_list, question, answer, train):
-	image_list = full_image_list
+	image_list = full_val_image_list
 	if train:
 		image_list = full_train_image_list
 
@@ -55,12 +58,12 @@ def extend_choices_and_shuffle(choice_list, question, answer, train):
 	# print(len(choice_list))
 
 	for c in choice_list:
-		prob_dist[reverse_index_mapping[c]] = 0
+		prob_dist[reverse_index_mapping[train][c]] = 0
 
 	for q in question:
-		prob_dist[reverse_index_mapping[q]] = 0
+		prob_dist[reverse_index_mapping[train][q]] = 0
 
-	prob_dist[reverse_index_mapping[answer]] = 0
+	prob_dist[reverse_index_mapping[train][answer]] = 0
 
 	choice_list.append(answer)
 
