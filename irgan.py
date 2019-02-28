@@ -108,7 +108,7 @@ def fscore(probabilities, labels):
     return precision, recall, fscore
 
 def score_gen(distributions, expected_outputs):
-    correct_answers = (distributions.argmax(dim=1)==expected_outputs.argmax(dim=1)).sum().item()
+    correct_answers = (distributions.argmax(dim=1)==expected_outputs).sum().item()
 
     return correct_answers
 
@@ -162,8 +162,9 @@ def pre_train(train_netD, train_netG):
                 netG.zero_grad()
                 logits, distributions = netG(batch)
 
-                expected_outputs = torch.full((batch["size"], batch["choices"].size(1)), 0).to(device)
-                expected_outputs[range(batch["size"]), batch["answers"]] = 1  
+                # expected_outputs = torch.full((batch["size"], batch["choices"].size(1)), 0).to(device)
+                # expected_outputs[range(batch["size"]), batch["answers"]] = 1  
+                expected_outputs = torch.tensor(batch["answers"]).to(device)
 
                 loss = criterionG(logits, expected_outputs)
                 loss.backward()
@@ -184,8 +185,9 @@ def pre_train(train_netD, train_netG):
                 with torch.no_grad():
                     logits, distributions = netG(batch)
                     
-                    expected_outputs = torch.full((batch["size"], batch["choices"].size(1)), 0).to(device)
-                    expected_outputs[range(batch["size"]), batch["answers"]] = 1
+                    # expected_outputs = torch.full((batch["size"], batch["choices"].size(1)), 0).to(device)
+                    # expected_outputs[range(batch["size"]), batch["answers"]] = 1
+                    expected_outputs = torch.tensor(batch["answers"]).to(device)
 
                     loss = criterionG(logits, expected_outputs)
                     print(
