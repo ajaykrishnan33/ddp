@@ -157,6 +157,7 @@ def pre_train(train_netD, train_netG):
 
     if train_netG:
         for epoch in tqdm(range(opt.pre_niter)):
+            netG.train()
             for i, batch in tqdm(enumerate(train_dataloader, 0), total=len(train_dataloader)):
                 netG.zero_grad()
                 logits, distributions = netG(batch)
@@ -314,7 +315,9 @@ def training():
         torch.save(netD.state_dict(), '%s/netD_epoch_%d.pth' % (opt.outf, epoch))
 
 if __name__ == "__main__":
+    
     if opt.pretrain:
         pre_train(False, True)
-    elif opt.train:
+    
+    if opt.train:
         training()
