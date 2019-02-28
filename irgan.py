@@ -32,6 +32,8 @@ parser.add_argument('--netD', default='', help="path to netD (to continue traini
 parser.add_argument('--outf', default='.', help='folder to output images and model checkpoints')
 parser.add_argument('--manualSeed', type=int, help='manual seed')
 parser.add_argument('--vgg_pretrained', action='store_true', help='vgg pretrained?', default=False)
+parser.add_argument('--pretrain', action='store_true', help='pretrain?', default=False)
+parser.add_argument('--train', action='store_true', help='train?', default=False)
 
 opt = parser.parse_args()
 print(opt)
@@ -105,7 +107,13 @@ def fscore(probabilities, labels):
 
     return precision, recall, fscore
 
-def pre_train(train_netG, train_netD):
+def score_gen(distributions, expected_outputs):
+    correct_answers = (distributions.argmax(dim=1)==expected_outputs.argmax(dim=1)).sum().item()
+
+    return correct_answers
+
+
+def pre_train(train_netD, train_netG):
 
     if train_netD:
         for epoch in tqdm(range(opt.pre_niter)):
@@ -115,22 +123,17 @@ def pre_train(train_netG, train_netD):
                 logits, probabilities = netD(batch)
                 labels = torch.full((batch["size"],), 1).to(device)
 
-                # print("logits", logits.shape)
-                # print("labels", labels.shape)
-
                 loss = criterionD(logits, labels)
                 loss.backward()
                 optimizerD.step()
 
-                # correct_answers = (torch.round(probabilities)==labels).sum().item()
-
-                # print(
-                #     "Pretraining discriminator Epoch: {}, batch_num: {}, loss: {}, precision: {}, recall: {}, fscore: {}"
-                #     .format(
-                #         epoch, i, loss,
-                #         *fscore(probabilities, labels)
-                #     )
-                # )
+                print(
+                    "Train:: Pretraining discriminator Epoch: {}, batch_num: {}, loss: {}, precision: {}, recall: {}, fscore: {}"
+                    .format(
+                        epoch, i, loss,
+                        *fscore(probabilities, labels)
+                    )
+                )
 
             # validation booyeah!
             netD.eval()
@@ -141,12 +144,14 @@ def pre_train(train_netG, train_netD):
                     labels = torch.full((batch["size"],), 1).to(device)
                     loss = criterionD(logits, labels)
                     print(
-                        "Pretraining discriminator Epoch: {}, batch_num: {}, loss: {}, precision: {}, recall: {}, fscore: {}"
+                        "Eval:: Pretraining discriminator Epoch: {}, batch_num: {}, loss: {}, precision: {}, recall: {}, fscore: {}"
                         .format(
                             epoch, i, loss,
                             *fscore(probabilities, labels)
                         )
                     )
+
+            torch.save(netD.state_dict(), '%s/netD_pretrain_epoch_%d.pth' % (opt.outf, epoch))
 
 
 
@@ -155,18 +160,42 @@ def pre_train(train_netG, train_netD):
             for i, batch in tqdm(enumerate(train_dataloader, 0), total=len(train_dataloader)):
                 netG.zero_grad()
                 logits, distributions = netG(batch)
-                # expected_outputs = batch["answers"]
 
                 expected_outputs = torch.full((batch["size"], batch["choices"].size(1)), 0).to(device)
-                expected_outputs[range(batch["size"]), answers] = 1  
+                expected_outputs[range(batch["size"]), batch["answers"]] = 1  
 
                 loss = criterionG(logits, expected_outputs)
                 loss.backward()
                 optimizerG.step()
 
-                # correct_answers = (torch.round(logits)==labels).sum().item()
+                print(
+                    "Train:: Pretraining generator Epoch: {}, batch_num: {}, loss: {}, correct_answers: {}"
+                    .format(
+                        epoch, i, loss,
+                        score_gen(distributions, expected_outputs)
+                    )
+                )
 
-                # print("Pretraining generator Epoch: {}, batch_num: {}, loss: {}, answered: {}/{}".format(epoch, i, loss, correct_answers, labels.size(0)*labels.size(1)))
+            # validation booyeah!
+            netG.eval()
+            print("\nEvaluation:")
+            for i, batch in tqdm(enumerate(val_dataloader, 0), total=len(val_dataloader)):
+                with torch.no_grad():
+                    logits, distributions = netG(batch)
+                    
+                    expected_outputs = torch.full((batch["size"], batch["choices"].size(1)), 0).to(device)
+                    expected_outputs[range(batch["size"]), batch["answers"]] = 1
+
+                    loss = criterionG(logits, expected_outputs)
+                    print(
+                        "Eval:: Pretraining generator Epoch: {}, batch_num: {}, loss: {}, correct_answers: {}"
+                        .format(
+                            epoch, i, loss,
+                            score_gen(distributions, expected_outputs)
+                        )
+                    )
+
+            torch.save(netG.state_dict(), '%s/netG_pretrain_epoch_%d.pth' % (opt.outf, epoch))
 
 def generate_samples(batch, distributions, num_samples):
     samples = []
@@ -201,7 +230,6 @@ def training():
 
     print(netD)
 
-    pre_train(opt.netG == '', opt.netD == '')
 
     for epoch in tqdm(range(opt.niter)):
         for g in range(opt.g_epochs):
@@ -286,4 +314,7 @@ def training():
         torch.save(netD.state_dict(), '%s/netD_epoch_%d.pth' % (opt.outf, epoch))
 
 if __name__ == "__main__":
-    training()
+    if opt.pretrain:
+        pre_train(False, True)
+    elif opt.train:
+        training()
