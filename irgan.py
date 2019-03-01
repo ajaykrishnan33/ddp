@@ -286,7 +286,7 @@ def training():
                     \ng_correct_answers: {}/{}"
                     .format(
                         epoch, i, loss,
-                        *fscore(d_probabilities, neg_labels)
+                        *fscore(d_probabilities, neg_labels),
                         score_gen(distributions, expected_outputs), batch["size"]
                     )
                 )
@@ -330,7 +330,7 @@ def training():
                     \ng_correct_answers: {}/{}"
                     .format(
                         epoch, i, loss,
-                        *fscore(d_probabilities, all_labels)
+                        *fscore(d_probabilities, all_labels),
                         score_gen(distributions, expected_outputs), batch["size"]
                     )
                 )
