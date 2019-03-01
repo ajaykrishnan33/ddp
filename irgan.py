@@ -258,16 +258,16 @@ def training():
 
 
     for epoch in tqdm(range(opt.niter)):
+        netG.train()
         for g in range(opt.g_epochs):
             for i, batch in tqdm(enumerate(train_dataloader, 0), total=len(train_dataloader)):
-                print("Training Generator Epoch:{}, batch:{}".format(epoch, i))
                 netG.zero_grad()
                 
                 g_logits, distributions = netG(batch) # context + question + choice_list ==> probability distribution over choice_list
                 
                 sample_batch = generate_samples(batch, distributions, opt.num_samples)
 
-                d_sample_logits, _ = netD(sample_batch)
+                d_sample_logits, d_probabilities = netD(sample_batch)
 
                 g_sample_probs = sample_batch["probabilities"]
                 
@@ -277,13 +277,27 @@ def training():
                 loss.backward()
                 optimizerG.step()
 
+                neg_labels = torch.full((sample_batch["size"],), 0).to(device)
+                expected_outputs = torch.tensor(batch["answers"]).to(device)
+
+                print(
+                    "\nTraining generator Epoch: {}, batch_num: {}, generator_loss: {} \
+                    \nd_precision: {}, d_recall: {}, d_fscore: {} \
+                    \ng_correct_answers: {}/{}"
+                    .format(
+                        epoch, i, loss,
+                        *fscore(d_probabilities, neg_labels)
+                        score_gen(distributions, expected_outputs), batch["size"]
+                    )
+                )
+
         eval_netG(epoch)
 
         torch.save(netG.state_dict(), '%s/netG_train_epoch_%d.pth' % (opt.outf, epoch))
 
+        netD.train()
         for d in range(opt.d_epochs):
             for batch in tqdm(enumerate(train_dataloader, 0), total=len(train_dataloader)):
-                print("Training Discriminator Epoch:{}, batch:{}".format(epoch, i))
                 netD.zero_grad()
                 
                 """
@@ -295,16 +309,31 @@ def training():
                 sample_batch = generate_samples(batch, distributions, opt.num_samples)
                 
                 neg_labels = torch.full((sample_batch["size"],), 0).to(device)
-                sample_logits, _ = netD(sample_batch)
+                sample_logits, sample_probs = netD(sample_batch)
                 neg_loss = criterionD(sample_logits, neg_labels)
                 
                 batch_labels = torch.full((batch["size"],), 1).to(device)
-                batch_logits = netD(batch)
+                batch_logits, batch_probs = netD(batch)
                 batch_loss = criterionD(batch_logits, batch_labels)
 
                 total_loss = neg_loss + batch_loss
                 total_loss.backward()
                 optimizerD.step()
+
+                all_labels = torch.stack((neg_labels, batch_labels))
+                d_probabilities = torch.stack((sample_probs, batch_probs))
+                expected_outputs = torch.tensor(batch["answers"]).to(device)
+
+                print(
+                    "\nTraining discriminator Epoch: {}, batch_num: {}, discriminator_loss: {} \
+                    \nd_precision: {}, d_recall: {}, d_fscore: {} \
+                    \ng_correct_answers: {}/{}"
+                    .format(
+                        epoch, i, loss,
+                        *fscore(d_probabilities, all_labels)
+                        score_gen(distributions, expected_outputs), batch["size"]
+                    )
+                )
 
         eval_netD(epoch)
 
