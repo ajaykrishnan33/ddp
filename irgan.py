@@ -103,7 +103,7 @@ def fscore(probabilities, labels):
     recall = true_positives / (true_positives + false_negatives + epsilon)
     fscore = (2 * precision * recall) / (precision + recall + epsilon)
 
-    print("True positives: {}, False positives: {}, False negatives: {}".format(true_positives, false_positives, false_negatives))
+    print("\nTrue positives: {}, False positives: {}, False negatives: {}".format(true_positives, false_positives, false_negatives))
 
     return precision, recall, fscore
 
@@ -282,11 +282,11 @@ def training():
 
                 print(
                     "\nTraining generator Epoch: {}, batch_num: {}, generator_loss: {} \
-                    \nd_precision: {}, d_recall: {}, d_fscore: {} \
+                    \nd_correct_answers: {}/{} \
                     \ng_correct_answers: {}/{}"
                     .format(
                         epoch, i, loss,
-                        *fscore(d_probabilities, neg_labels),
+                        (torch.round(d_probabilities)==neg_labels).sum().item(), sample_batch["size"],
                         score_gen(distributions, expected_outputs), batch["size"]
                     )
                 )
