@@ -212,10 +212,10 @@ def generate_samples(batch, distributions, num_samples):
 
     for i, data in enumerate(batch["choices"]):
         local_sample_indices = torch.multinomial(distributions[i], num_samples, replacement=True)
-        samples.append(data[local_sample_indices])
+        samples.append(torch.tensor(data[local_sample_indices]))
         sample_indices.append(local_sample_indices)
 
-    samples = torch.tensor(samples).to(device)
+    samples = torch.stack((*samples,)).to(device)
 
     sample_batch = {
         "questions":batch["questions"],
