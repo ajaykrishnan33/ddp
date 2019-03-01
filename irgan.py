@@ -297,7 +297,7 @@ def training():
 
         netD.train()
         for d in range(opt.d_epochs):
-            for batch in tqdm(enumerate(train_dataloader, 0), total=len(train_dataloader)):
+            for i, batch in tqdm(enumerate(train_dataloader, 0), total=len(train_dataloader)):
                 netD.zero_grad()
                 
                 """
