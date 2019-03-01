@@ -210,21 +210,37 @@ def generate_samples(batch, distributions, num_samples):
     samples = []
     sample_indices = []
 
-    for i, data in enumerate(batch["choices"]):
-        local_sample_indices = torch.multinomial(distributions[i], num_samples, replacement=True)
-        samples.append(torch.tensor(data[local_sample_indices]))
-        sample_indices.append(local_sample_indices)
-
-    samples = torch.stack((*samples,)).to(device)
-
     sample_batch = {
-        "questions":batch["questions"],
-        "contexts":batch["contexts"],
-        "choices":samples,
-        "size": batch["size"]
+        "questions":[],
+        "contexts":[],
+        "choices":[],
+        "answers":[],
+        "probabilities":[],
+        "wrongs":[],
+        "size": batch["size"]*num_samples
     }
 
-    return sample_batch, sample_indices
+    for i, data in enumerate(batch["choices"]):
+        sample_batch["questions"].extend([batch["questions"][i]]*num_samples)
+        sample_batch["contexts"].extend([batch["contexts"][i]]*num_samples)
+        sample_batch["choices"].extend([batch["choices"][i]]*num_samples)
+        answers = list(torch.multinomial(distributions[i], num_samples, replacement=True))
+        probabilities = distributions[i][answers]
+        sample_batch["answers"].extend(answers)
+        sample_batch["probabilities"].extend(probabilities)
+        sample_batch["wrongs"].extend([batch["wrongs"][i]]*num_samples)
+
+        # samples.append(torch.tensor(data[local_sample_indices]))
+        # sample_indices.append(local_sample_indices)
+
+    # samples = torch.stack((*samples,)).to(device)
+
+    sample_batch["questions"] = torch.stack((*sample_batch["questions"],)).to(device)
+    sample_batch["contexts"] = torch.stack((*sample_batch["contexts"],)).to(device)
+    sample_batch["choices"] = torch.stack((*sample_batch["choices"],)).to(device)
+    sample_batch["probabilities"] = torch.tensor(sample_batch["probabilities"]).to(device)
+
+    return sample_batch
 
 def training():
     netG.apply(weights_init)
@@ -248,48 +264,14 @@ def training():
                 
                 g_logits, distributions = netG(batch) # context + question + choice_list ==> probability distribution over choice_list
                 
-                sample_batch, sample_indices = generate_samples(batch, distributions, opt.num_samples)
+                sample_batch = generate_samples(batch, distributions, opt.num_samples)
 
                 d_sample_logits, _ = netD(sample_batch)
 
-                g_sample_probs = []
-
-                for i, local_sample_indices in enumerate(sample_indices):
-                    g_sample_probs.append(distributions[i, local_sample_indices])
-
-                """
-                Explanation regarding generate_samples, d_sample_logits, g_sample_probs:
-                    generate_samples generates K samples per question from the choiceset for the question
-                    and sets the K samples as the new choiceset for the question. Since the output of the 
-                    discriminator for each choice is independent of the other choices, we can use this trick
-                    of setting all K samples as the choices of a single question. If the generator were 
-                    perfect, then all the K samples will be identical and will be equal to the right answer
-                    and hence the discriminator will output 1 for every choice of the question.        
-
-                    d_sample_logits has the shape: batch_size X K
-                    Each K-sized vector in d_sample_logits is a list of likelihoods for each of the K 
-                    samples for the question being the right answer to the question. 
-                    d_sample_logits[question_num][j] --> probability of sample j being the right answer to
-                    the question at index "question_num" in the batch (computed by the discriminator)
-
-                    g_sample_probs has the shape: batch_size X K
-                    Each K-sized vector in g_sample_probs is a list of probability values (of relevance) 
-                    for the K samples computed over the original choices for the question 
-                    (and not just the chosen samples).
-                    g_sample_probs[question_num][j] --> probability of sample j being the right answer
-                    to the question at index "question_num" in the batch (as computed by the generator 
-                    from the original choice set).
-
-                    For every question q, for every sample j, we need to compute:
-                    logsigmoid(d_sample_logits[q][j]) * log(g_sample_probs[q][j])
-
-                    For every question q, we need to find:
-                    mean_over_all_j(logsigmoid(d_sample_logits[q][j]) * log(g_sample_probs[q][j]))
-                    
-                """                
-
+                g_sample_probs = sample_batch["probabilities"]
+                
                 loss = torch.mean(
-                    torch.log_softmax(g_sample_logits) * torch.logsigmoid(d_sample_logits)
+                    torch.log(g_sample_probs) * torch.logsigmoid(d_sample_logits)
                 )
                 loss.backward()
                 optimizerG.step()
@@ -309,13 +291,13 @@ def training():
                 We will also pass the true answers through the discriminator which must output 1 for them.
                 """
                 g_logits, distributions = netG(batch)
-                sample_batch, sample_indices = generate_samples(opt.num_samples, distributions, batch)
+                sample_batch = generate_samples(batch, distributions, opt.num_samples)
                 
-                neg_labels = torch.full((batch["size"], opt.num_samples), 0).to(device)
+                neg_labels = torch.full((sample_batch["size"],), 0).to(device)
                 sample_logits, _ = netD(sample_batch)
                 neg_loss = criterionD(sample_logits, neg_labels)
                 
-                batch_labels = batch["answers"]
+                batch_labels = torch.full((batch["size"],), 1).to(device)
                 batch_logits = netD(batch)
                 batch_loss = criterionD(batch_logits, batch_labels)
 
