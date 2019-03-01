@@ -22,7 +22,7 @@ parser.add_argument('--num_samples', type=int, default=10, help='number of sampl
 parser.add_argument('--pre_niter', type=int, default=10, help='total number of epochs to train for')
 parser.add_argument('--niter', type=int, default=25, help='total number of epochs to train for')
 parser.add_argument('--g_epochs', type=int, default=1, help='number of epochs to train Generator for')
-parser.add_argument('--d_epocs', type=int, default=1, help='number of epochs to train Discriminator for')
+parser.add_argument('--d_epochs', type=int, default=1, help='number of epochs to train Discriminator for')
 parser.add_argument('--lr', type=float, default=0.0002, help='learning rate, default=0.0002')
 parser.add_argument('--beta1', type=float, default=0.5, help='beta1 for adam. default=0.5')
 parser.add_argument('--cuda', action='store_true', help='enables cuda')
