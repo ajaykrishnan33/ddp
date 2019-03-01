@@ -325,11 +325,11 @@ def training():
                 expected_outputs = torch.tensor(batch["answers"]).to(device)
 
                 print(
-                    "\nTraining discriminator Epoch: {}, batch_num: {}, discriminator_loss: {} \
+                    "\nTraining discriminator Epoch: {}, batch_num: {}, neg_loss: {}, batch_loss: {}, total_loss: {} \
                     \nd_precision: {}, d_recall: {}, d_fscore: {} \
                     \ng_correct_answers: {}/{}"
                     .format(
-                        epoch, i, loss,
+                        epoch, i, neg_loss, batch_loss, total_loss,
                         *fscore(d_probabilities, all_labels),
                         score_gen(distributions, expected_outputs), batch["size"]
                     )
