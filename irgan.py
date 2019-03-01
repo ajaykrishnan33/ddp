@@ -224,8 +224,8 @@ def generate_samples(batch, distributions, num_samples):
         sample_batch["questions"].extend([batch["questions"][i]]*num_samples)
         sample_batch["contexts"].extend([batch["contexts"][i]]*num_samples)
         sample_batch["choices"].extend([batch["choices"][i]]*num_samples)
-        answers = list(torch.multinomial(distributions[i], num_samples, replacement=True))
-        print("distributions:", distributions.shape, "answers:", answers)
+        answers = [a.item() for a in list(torch.multinomial(distributions[i], num_samples, replacement=True))]
+        # print("distributions:", distributions.shape, "answers:", answers)
         probabilities = distributions[i][answers]
         sample_batch["answers"].extend(answers)
         sample_batch["probabilities"].extend(probabilities)
