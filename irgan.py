@@ -320,7 +320,7 @@ def training():
                 total_loss.backward()
                 optimizerD.step()
 
-                all_labels = torch.stack((neg_labels, batch_labels))
+                all_labels = torch.cat((neg_labels, batch_labels))
                 d_probabilities = torch.stack((sample_probs, batch_probs))
                 expected_outputs = torch.tensor(batch["answers"]).to(device)
 
