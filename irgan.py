@@ -272,7 +272,7 @@ def training():
                 g_sample_probs = sample_batch["probabilities"]
                 
                 loss = torch.mean(
-                    torch.log(g_sample_probs) * torch.logsigmoid(d_sample_logits)
+                    torch.log(g_sample_probs) * nn.functional.logsigmoid(d_sample_logits)
                 )
                 loss.backward()
                 optimizerG.step()
