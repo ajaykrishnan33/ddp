@@ -321,7 +321,7 @@ def training():
                 optimizerD.step()
 
                 all_labels = torch.cat((neg_labels, batch_labels))
-                d_probabilities = torch.stack((sample_probs, batch_probs))
+                d_probabilities = torch.cat((sample_probs, batch_probs))
                 expected_outputs = torch.tensor(batch["answers"]).to(device)
 
                 print(
