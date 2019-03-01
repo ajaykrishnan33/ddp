@@ -21,6 +21,7 @@ parser.add_argument('--imageSize', type=int, default=64, help='the height / widt
 parser.add_argument('--num_samples', type=int, default=10, help='number of samples per question')
 parser.add_argument('--pre_niter', type=int, default=10, help='total number of epochs to train for')
 parser.add_argument('--niter', type=int, default=25, help='total number of epochs to train for')
+parser.add_argument('--start_iter', type=int, default=0, help='epoch to start from')
 parser.add_argument('--g_epochs', type=int, default=1, help='number of epochs to train Generator for')
 parser.add_argument('--d_epochs', type=int, default=1, help='number of epochs to train Discriminator for')
 parser.add_argument('--lr', type=float, default=0.0002, help='learning rate, default=0.0002')
@@ -257,43 +258,43 @@ def training():
     print(netD)
 
 
-    for epoch in tqdm(range(opt.niter)):
-        # netG.train()
-        # for g in range(opt.g_epochs):
-        #     for i, batch in tqdm(enumerate(train_dataloader, 0), total=len(train_dataloader)):
-        #         netG.zero_grad()
+    for epoch in tqdm(range(opt.start_iter, opt.niter)):
+        netG.train()
+        for g in range(opt.g_epochs):
+            for i, batch in tqdm(enumerate(train_dataloader, 0), total=len(train_dataloader)):
+                netG.zero_grad()
                 
-        #         g_logits, distributions = netG(batch) # context + question + choice_list ==> probability distribution over choice_list
+                g_logits, distributions = netG(batch) # context + question + choice_list ==> probability distribution over choice_list
                 
-        #         sample_batch = generate_samples(batch, distributions, opt.num_samples)
+                sample_batch = generate_samples(batch, distributions, opt.num_samples)
 
-        #         d_sample_logits, d_probabilities = netD(sample_batch)
+                d_sample_logits, d_probabilities = netD(sample_batch)
 
-        #         g_sample_probs = sample_batch["probabilities"]
+                g_sample_probs = sample_batch["probabilities"]
                 
-        #         loss = torch.mean(
-        #             torch.log(g_sample_probs) * nn.functional.logsigmoid(d_sample_logits)
-        #         )
-        #         loss.backward()
-        #         optimizerG.step()
+                loss = torch.mean(
+                    torch.log(g_sample_probs) * nn.functional.logsigmoid(d_sample_logits)
+                )
+                loss.backward()
+                optimizerG.step()
 
-        #         neg_labels = torch.full((sample_batch["size"],), 0).to(device)
-        #         expected_outputs = torch.tensor(batch["answers"]).to(device)
+                neg_labels = torch.full((sample_batch["size"],), 0).to(device)
+                expected_outputs = torch.tensor(batch["answers"]).to(device)
 
-        #         print(
-        #             "\nTraining generator Epoch: {}, batch_num: {}, generator_loss: {} \
-        #             \nd_correct_answers: {}/{} \
-        #             \ng_correct_answers: {}/{}"
-        #             .format(
-        #                 epoch, i, loss,
-        #                 (torch.round(d_probabilities)==neg_labels).sum().item(), sample_batch["size"],
-        #                 score_gen(distributions, expected_outputs), batch["size"]
-        #             )
-        #         )
+                print(
+                    "\nTraining generator Epoch: {}, batch_num: {}, generator_loss: {} \
+                    \nd_correct_answers: {}/{} \
+                    \ng_correct_answers: {}/{}"
+                    .format(
+                        epoch, i, loss,
+                        (torch.round(d_probabilities)==neg_labels).sum().item(), sample_batch["size"],
+                        score_gen(distributions, expected_outputs), batch["size"]
+                    )
+                )
 
-        # eval_netG(epoch)
+        eval_netG(epoch)
 
-        # torch.save(netG.state_dict(), '%s/netG_train_epoch_%d.pth' % (opt.outf, epoch))
+        torch.save(netG.state_dict(), '%s/netG_train_epoch_%d.pth' % (opt.outf, epoch))
 
         netD.train()
         for d in range(opt.d_epochs):
