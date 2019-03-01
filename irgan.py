@@ -122,7 +122,7 @@ def eval_netD(epoch):
             labels = torch.full((batch["size"],), 1).to(device)
             loss = criterionD(logits, labels)
             print(
-                "Eval:: Pretraining discriminator Epoch: {}, batch_num: {}, loss: {}, precision: {}, recall: {}, fscore: {}"
+                "\nEval:: training discriminator Epoch: {}, batch_num: {}, loss: {}, precision: {}, recall: {}, fscore: {}"
                 .format(
                     epoch, i, loss,
                     *fscore(probabilities, labels)
@@ -143,7 +143,7 @@ def eval_netG(epoch):
 
             loss = criterionG(logits, expected_outputs)
             print(
-                "Eval:: Pretraining generator Epoch: {}, batch_num: {}, loss: {}, correct_answers: {}"
+                "\nEval:: training generator Epoch: {}, batch_num: {}, loss: {}, correct_answers: {}"
                 .format(
                     epoch, i, loss,
                     score_gen(distributions, expected_outputs)
