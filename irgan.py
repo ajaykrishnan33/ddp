@@ -268,7 +268,8 @@ def training():
                 
                 sample_batch = generate_samples(batch, distributions, opt.num_samples)
 
-                d_sample_logits, d_probabilities = netD(sample_batch)
+                with torch.no_grad():
+                    d_sample_logits, d_probabilities = netD(sample_batch)
 
                 g_sample_probs = sample_batch["probabilities"]
                 
@@ -306,7 +307,9 @@ def training():
                 them through the discriminator. We want the discriminator to output 0 for these images.
                 We will also pass the true answers through the discriminator which must output 1 for them.
                 """
-                g_logits, distributions = netG(batch)
+                with torch.no_grad():
+                    g_logits, distributions = netG(batch)
+                
                 sample_batch = generate_samples(batch, distributions, opt.num_samples)
                 
                 neg_labels = torch.full((sample_batch["size"],), 0).to(device)
