@@ -69,24 +69,25 @@ class BaseNetwork(nn.Module):
 
         encoded_questions_seq = torch.squeeze(encoded_questions_seq.transpose(0,1), dim=1)
 
-        indices_temp = input_data["contexts"]
+        contexts = input_data["contexts"]  # (batch_size, max_ct, max_length, vocab_size)
 
-        indices_temp = indices_temp.view(-1, *indices_temp.shape[2:])
+        indices_temp = contexts.view(-1, *indices_temp.shape[2:]) # (batch_size*max_ct, max_length, vocab_size)
 
         sentences_temp = self.word_encoder(indices_temp)
 
         _, encoded_sentences_temp = self.sentence_encoder(sentences_temp)   # finally a list of vectors
 
-        encoded_sentences_temp = torch.squeeze(encoded_sentences_temp.transpose(0,1), dim=1)
+        encoded_sentences_temp = torch.squeeze(encoded_sentences_temp.transpose(0,1), dim=1) 
+        # (batch_size*max_ct, 300)
 
-        _, encoded_contexts_temp = self.context_encoder(encoded_sentences_temp)
+        encoded_sentences_temp = encoded_sentences_temp.view(
+            contexts.shape[0],
+            -1, encoded_sentences_temp.shape[-1]
+        ) # (batch_size, max_ct, 300)
 
-        encoded_contexts_temp = torch.squeeze(encoded_contexts_temp.transpose(0,1), dim=1)
+        _, encoded_contexts_temp = self.context_encoder(encoded_sentences_temp) # (1, batch_size, 300)
 
-        encoded_contexts = encoded_contexts_temp.view(
-            contexts.shape[0], 
-            *encoded_contexts_temp.shape[-1]
-        )
+        encoded_contexts = torch.squeeze(encoded_contexts_temp.transpose(0,1), dim=1) # (batch_size, 300)
 
         encoded_questions_and_contexts_temp = torch.cat((encoded_questions_seq, encoded_contexts), 1)
 
