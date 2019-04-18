@@ -52,28 +52,19 @@ print("Random Seed: ", opt.manualSeed)
 random.seed(opt.manualSeed)
 torch.manual_seed(opt.manualSeed)
 
-train_embeddings = dataservices.Doc2Vec(
-    "paragraph-vectors/data/sentences_train_model.dbow_numnoisewords.2_vecdim.100_batchsize.32_lr.0.001000_epoch.100_loss.0.781092.csv"
-)
 train_dataset = dataservices.RecipeQADataset(
     "recipeqa/new_train_cleaned.json", 
-    "recipeqa/features/train",
-    train_embeddings
+    "recipeqa/features/train"
 )
-
 train_dataloader = torch.utils.data.DataLoader(
     train_dataset, batch_size=opt.batchSize,
     shuffle=True, num_workers=int(opt.workers),
     collate_fn=dataservices.batch_collator(device=device)
 )
 
-val_embeddings = dataservices.Doc2Vec(
-    "paragraph-vectors/data/sentences_val_model.dbow_numnoisewords.2_vecdim.100_batchsize.32_lr.0.001000_epoch.100_loss.0.557238.csv",
-)
 val_dataset = dataservices.RecipeQADataset(
     "recipeqa/new_val_cleaned.json", 
-    "recipeqa/features/val", 
-    val_embeddings
+    "recipeqa/features/val"
 )
 val_dataloader = torch.utils.data.DataLoader(
     val_dataset, batch_size=opt.batchSize,
