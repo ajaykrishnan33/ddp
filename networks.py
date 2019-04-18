@@ -2,6 +2,8 @@ import torch
 import torchvision
 import torch.nn as nn
 
+VOCAB_SIZE = 9273
+
 class BaseNetwork(nn.Module):
     def __init__(self, opt):
         super(BaseNetwork, self).__init__()
@@ -26,7 +28,7 @@ class BaseNetwork(nn.Module):
             batch_first=True
         )
 
-        self.word_encoder = nn.Embedding(vocab_size, 300)
+        self.word_encoder = nn.Embedding(VOCAB_SIZE, 300)
 
         self.sentence_encoder = nn.GRU( # for encoding the context v
             input_size=300,
