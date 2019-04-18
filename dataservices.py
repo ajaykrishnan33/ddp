@@ -30,9 +30,10 @@ vocabulary = Vocabulary()
 
 class RecipeQADataset(Dataset):
     
-    def __init__(self, csv_file, root_dir):
+    def __init__(self, csv_file, root_dir, alternate_root_dir=None):
         self.data_list = ujson.load(open(csv_file, "r"))
         self.root_dir = root_dir
+        self.alternate_root_dir = alternate_root_dir
         # self.vocab = load_vocabulary()
 
     def __len__(self):
@@ -61,7 +62,7 @@ class RecipeQADataset(Dataset):
 
         ret["choice_list"] = torch.stack((*[
             # io.imread(os.path.join(self.root_dir, img)) for img in data_item["choice_list"]
-            torch.load(os.path.join(self.root_dir, img)) for img in data_item["choice_list"]
+            torch.load(os.path.join(self.root_dir, img)) if os.path.isfile(os.path.join(self.root_dir, img)) else torch.load(os.path.join(self.alternate_root_dir, img)) for img in data_item["choice_list"]
         ],))
 
         ret["question"] = torch.stack((*[
