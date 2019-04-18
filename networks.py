@@ -71,7 +71,7 @@ class BaseNetwork(nn.Module):
 
         contexts = input_data["contexts"]  # (batch_size, max_ct, max_length, vocab_size)
 
-        indices_temp = contexts.view(-1, *indices_temp.shape[2:]) # (batch_size*max_ct, max_length, vocab_size)
+        indices_temp = contexts.view(-1, *contexts.shape[2:]) # (batch_size*max_ct, max_length, vocab_size)
 
         sentences_temp = self.word_encoder(indices_temp)
 
