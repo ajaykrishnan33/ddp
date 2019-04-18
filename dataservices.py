@@ -24,7 +24,7 @@ class Vocabulary:
         if word in self._vocab:
             return self._vocab[word]
         else:
-            return self.vocab["<UNKNOWN>"]
+            return self._vocab["<UNKNOWN>"]
 
 vocabulary = Vocabulary()
 
