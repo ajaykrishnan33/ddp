@@ -13,14 +13,14 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 NUM_CHOICES = 20
 
 class Vocabulary:
-    def __init__():
+    def __init__(self):
         with open("recipeqa/vocab_clean.txt", "r") as f:
             vocab = {}
             for i, w in enumerate(f):
                 vocab[str(w).strip()] = i
             self._vocab = vocab
 
-    def get_index(word):
+    def get_index(self, word):
         if word in self._vocab:
             return self._vocab[word]
         else:
