@@ -64,7 +64,8 @@ train_dataloader = torch.utils.data.DataLoader(
 
 val_dataset = dataservices.RecipeQADataset(
     "recipeqa/new_val_cleaned.json", 
-    "recipeqa/features/val"
+    "recipeqa/features/val",
+    "recipeqa/features/train"   
 )
 val_dataloader = torch.utils.data.DataLoader(
     val_dataset, batch_size=opt.batchSize,
