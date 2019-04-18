@@ -71,7 +71,7 @@ class BaseNetwork(nn.Module):
 
         indices_temp = input_data["contexts"]
 
-        indices_temp = contexts.view(-1, *indices_temp.shape[2:])
+        indices_temp = indices_temp.view(-1, *indices_temp.shape[2:])
 
         sentences_temp = self.word_encoder(indices_temp)
 
@@ -79,7 +79,7 @@ class BaseNetwork(nn.Module):
 
         encoded_sentences_temp = torch.squeeze(encoded_sentences_temp.transpose(0,1), dim=1)
 
-        encoded_contexts_temp = self.context_encoder(encoded_sentences_temp)
+        _, encoded_contexts_temp = self.context_encoder(encoded_sentences_temp)
 
         encoded_contexts_temp = torch.squeeze(encoded_contexts_temp.transpose(0,1), dim=1)
 
