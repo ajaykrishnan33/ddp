@@ -45,7 +45,7 @@ class BaseNetwork(nn.Module):
         )
 
         # the concatenation of the question and context vectors is transformed to size 100.
-        self.combined_encoder = nn.Linear(600, 100) 
+        self.combined_encoder = nn.Linear(600, 300) 
 
 
     def encode_questions_and_contexts(self, input_data):
