@@ -93,7 +93,7 @@ def batch_collator(device):
         for i, data_item in enumerate(batch):
             for sentence in data_item["context"]:  # list of index lists
                 reverse_map[ct] = i
-                contexts_temp.append(sentence)
+                contexts_temp.append(torch.tensor(sentence).to(device))
                 ct += 1
 
         contexts_temp = nn.utils.rnn.pad_sequence(
