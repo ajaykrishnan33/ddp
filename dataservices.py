@@ -12,12 +12,21 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 
 NUM_CHOICES = 20
 
-def load_vocabulary():
-    with open("recipeqa/vocab_clean.txt", "r") as f:
-        vocab = {}
-        for i, w in enumerate(f):
-            vocab[str(w).strip()] = i
-        return vocab
+class Vocabulary:
+    def __init__():
+        with open("recipeqa/vocab_clean.txt", "r") as f:
+            vocab = {}
+            for i, w in enumerate(f):
+                vocab[str(w).strip()] = i
+            self._vocab = vocab
+
+    def get_index(word):
+        if word in self._vocab:
+            return self._vocab[word]
+        else:
+            return self.vocab["<UNKNOWN>"]
+
+vocabulary = Vocabulary()
 
 class Doc2Vec:
     def __init__(self, embeddings_file_path):
@@ -28,10 +37,9 @@ class Doc2Vec:
 
 class RecipeQADataset(Dataset):
     
-    def __init__(self, csv_file, root_dir, embeddings):
+    def __init__(self, csv_file, root_dir):
         self.data_list = ujson.load(open(csv_file, "r"))
         self.root_dir = root_dir
-        self.embeddings = embeddings
         # self.vocab = load_vocabulary()
 
     def __len__(self):
@@ -51,11 +59,12 @@ class RecipeQADataset(Dataset):
         #     ] for c_item in data_item["context"]
         # ]
 
-        document_ids = [
-            data_item["context_base_id"] + i for i, _ in enumerate(data_item["context"])
+        sentences = [
+            [ vocabulary.get_index(word) for word in sentence ]
+            for sentence in data_item["context"]            
         ]
 
-        ret["context"] = self.embeddings.get_vectors(document_ids)
+        ret["context"] = sentences
 
         ret["choice_list"] = torch.stack((*[
             # io.imread(os.path.join(self.root_dir, img)) for img in data_item["choice_list"]
@@ -81,10 +90,35 @@ def batch_collator(device):
             batch_first = True
         ).to(device)  # batch of question arrays
 
-        contexts = nn.utils.rnn.pad_sequence(
-            [ x["context"] for x in batch ],
+        # contexts_temp = [ x["context"] for x in batch ]
+
+        contexts_temp = []
+        batch_size = len(batch)
+        reverse_map = {}
+        ct = 0
+
+        for i, data_item in enumerate(batch):
+            for sentence in data_item["context"]:  # list of index lists
+                reverse_map[ct] = i
+                contexts_temp.append(sentence)
+                ct += 1
+
+        contexts_temp = nn.utils.rnn.pad_sequence(
+            contexts_temp,
             batch_first = True
-        ).to(device) # batch of context vector sets
+        ).to(device)
+
+        singly_padded_contexts = [[] for i in range(batch_size)]
+        for i, sentence in enumerate(contexts_temp):
+            singly_padded_contexts[reverse_map[i]].append(sentence)
+
+        for i in range(len(singly_padded_contexts)):
+            singly_padded_contexts[i] = torch.stack((*singly_padded_contexts[i],)).to(device)
+
+        doubly_padded_contexts = nn.utils.rnn.pad_sequence(
+            singly_padded_contexts,
+            batch_first = True
+        ).to(device)
 
         choices = nn.utils.rnn.pad_sequence(
             [ x["choice_list"] for x in batch ],
@@ -96,7 +130,7 @@ def batch_collator(device):
 
         final_batch = {
             "questions": questions,
-            "contexts": contexts,
+            "contexts": doubly_padded_contexts,
             "choices": choices,
             "answers": answers,
             "wrongs": wrongs,

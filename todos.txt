@@ -127,6 +127,31 @@ Idea:
 			- If we were to even identify all these types of semantic information, how will we ensure a common representation for them in the first place?
 	- Is there an adversarial solution close by to this?
 
+02-03-2019
+
+An Image consists of a very low-level representation of information whereas the caption for the image consists of a very high level representation of the same (or subset of the) information. In general, an image will always capture much more information than its caption - implying that any encoding of an image must capture more information than an equivalent encoding of its caption, if both the encodings lie in a common vector space, i.e., the information of the caption encoding must be contained within the information of the image encoding. Assume that we have a network G1 that is a variational autoencoder (VAE) for images. Pass an image I through this network and obtain an encoding G1(I). Similarly, we have one more network G2 which is also a variational autoencoder for the caption. The caption C_I of the image I is passed through G2 to obtain the encoding G2(C_I). We will build one more network D, that accepts as input an image D and an encoding E as input and determines whether the encoding E contains some of the information present in the image I. The networks G1 and G2 are trained to convince the discriminator into thinking that the encodings G1(I) and G2(C_I) both contain information of the image I. 
+
+Problems:
+1. How will ever pre-train D, since the encoding E can only be obtained from the networks G1 and G2 and is not naturally available?
+2. What will be the negative samples for D? All samples generated from G1 and G2 and passed to D will be positive samples. Should we artificially construct negative samples by pairing an image with an irrelevant encoding?
+	- Alternatively, every training sample for D can consist of < I, E1, E2 > where E1 is the correct encoding and E2 is incorrect and the loss function can maximize the difference between the cosine similarities of encoding(I) with E1 and E2. 
+	- Won't the encoder part of D (for I) be identical to the encoder part of G1? Won't it just learn to mimic the encoder part of G1
+3. In this scheme, if D only takes an encoding (without the image) and tries to predict whether it came from the image distribution or from the caption distribution, would that also be equivalent?
+4. This feels like a simplification of CM-GANs (https://dl.acm.org/citation.cfm?id=3284750).
 
 
 
+16-04-2019
+
+1. Need to revive this.
+2. Modify model to use Google pre-trained Word2Vec embeddings.
+3. LSTM to encode the context.
+4. Implement evaluation metric.
+5. Find baseline from paper (no need to re-implement)
+
+
+Order:
+data_prepare.py
+verify_data.py
+create_vocab.py
+cleanup_vocab.py

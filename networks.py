@@ -9,32 +9,41 @@ class BaseNetwork(nn.Module):
         ## IMAGE AUTO ENCODER BEGINS ##
         self.img_compressor = nn.Sequential(
             nn.Linear(4096, 1024),
-            nn.Linear(1024, 100)
+            nn.Linear(1024, 300)
         )
 
         self.img_expander = nn.Sequential(
-            nn.Linear(100, 1024),
+            nn.Linear(300, 1024),
             nn.Linear(1024, 4096)
         )
 
         ## IMAGE AUTO ENCODER ENDS ##
 
         self.question_encoder = nn.GRU(  # for encoding the 4 question images together
-            input_size=100,   # img_compressor output size 
-            hidden_size=100,
+            input_size=300,   # img_compressor output size 
+            hidden_size=300,
+            num_layers=1,
+            batch_first=True
+        )
+
+        self.word_encoder = nn.Embedding(vocab_size, 300)
+
+        self.sentence_encoder = nn.GRU( # for encoding the context v
+            input_size=300,
+            hidden_size=300,
             num_layers=1,
             batch_first=True
         )
 
         self.context_encoder = nn.GRU(   # for encoding the context vectors together
-            input_size=100,    # doc2vec embedding size
-            hidden_size=100,
+            input_size=300,    # sentence encoder embedding size
+            hidden_size=300,
             num_layers=1,
             batch_first=True
         )
 
         # the concatenation of the question and context vectors is transformed to size 100.
-        self.combined_encoder = nn.Linear(200, 100) 
+        self.combined_encoder = nn.Linear(600, 100) 
 
 
     def encode_questions_and_contexts(self, input_data):
@@ -58,11 +67,24 @@ class BaseNetwork(nn.Module):
 
         encoded_questions_seq = torch.squeeze(encoded_questions_seq.transpose(0,1), dim=1)
 
-        contexts = input_data["contexts"]  # batch of context vector sets
+        indices_temp = input_data["contexts"]
 
-        _, encoded_contexts = self.context_encoder(contexts)   # finally a list of vectors
+        indices_temp = contexts.view(-1, *indices_temp.shape[2:])
 
-        encoded_contexts = torch.squeeze(encoded_contexts.transpose(0,1), dim=1)
+        sentences_temp = self.word_encoder(indices_temp)
+
+        _, encoded_sentences_temp = self.sentence_encoder(sentences_temp)   # finally a list of vectors
+
+        encoded_sentences_temp = torch.squeeze(encoded_sentences_temp.transpose(0,1), dim=1)
+
+        encoded_contexts_temp = self.context_encoder(encoded_sentences_temp)
+
+        encoded_contexts_temp = torch.squeeze(encoded_contexts_temp.transpose(0,1), dim=1)
+
+        encoded_contexts = encoded_contexts_temp.view(
+            contexts.shape[0], 
+            *encoded_contexts_temp.shape[-1]
+        )
 
         encoded_questions_and_contexts_temp = torch.cat((encoded_questions_seq, encoded_contexts), 1)
 
