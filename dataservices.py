@@ -10,7 +10,7 @@ from skimage import io, transform
 import torch.multiprocessing
 torch.multiprocessing.set_sharing_strategy('file_system')
 
-NUM_CHOICES = 20
+NUM_CHOICES = 4
 
 class Vocabulary:
     def __init__(self):
@@ -75,6 +75,104 @@ class RecipeQADataset(Dataset):
 
         return ret
 
+class RecipeQATestDDataset(Dataset):
+    
+    def __init__(self, csv_file, root_dir, alternate_root_dir=None):
+        self.data_list = ujson.load(open(csv_file, "r"))
+        self.root_dir = root_dir
+        self.alternate_root_dir = alternate_root_dir
+        # self.vocab = load_vocabulary()
+
+    def __len__(self):
+        return len(self.data_list)*(NUM_CHOICES*NUM_CHOICES)
+
+    def __getitem__(self, idx):
+        ret = {}
+
+        pish = NUM_CHOICES*NUM_CHOICES
+
+        q_id = idx//pish
+        p_id = idx%pish
+
+        a_id = p_id//NUM_CHOICES
+        w_id = p_id%NUM_CHOICES
+
+        data_item = self.data_list[q_id]
+
+        # ret["context"] = [
+        #     [
+        #         self.vocab[word] for word in c_item["cleaned_body"].split()
+        #     ] for c_item in data_item["context"]
+        # ]
+
+        sentences = [
+            [ vocabulary.get_index(word) for word in sentence ]
+            for sentence in data_item["context"]            
+        ]
+
+        ret["context"] = sentences
+
+        ret["choice_list"] = torch.stack((*[
+            # io.imread(os.path.join(self.root_dir, img)) for img in data_item["choice_list"]
+            torch.load(os.path.join(self.root_dir, img)) if os.path.isfile(os.path.join(self.root_dir, img)) else torch.load(os.path.join(self.alternate_root_dir, img)) for img in data_item["choice_list"]
+        ],))
+
+        ret["question"] = torch.stack((*[
+            # io.imread(os.path.join(self.root_dir, img)) for img in data_item["question"]
+            torch.load(os.path.join(self.root_dir, img)) for img in data_item["question"]
+        ],))
+
+        ret["answer"] = a_id
+        ret["wrong"] = w_id
+
+        ret["real_answer"] = data_item["answer"]
+
+        return ret
+
+class RecipeQATestGDataset(Dataset):
+    
+    def __init__(self, csv_file, root_dir, alternate_root_dir=None):
+        self.data_list = ujson.load(open(csv_file, "r"))
+        self.root_dir = root_dir
+        self.alternate_root_dir = alternate_root_dir
+        # self.vocab = load_vocabulary()
+
+    def __len__(self):
+        return len(self.data_list)
+
+    def __getitem__(self, idx):
+        ret = {}
+
+        data_item = self.data_list[idx]
+
+        # ret["context"] = [
+        #     [
+        #         self.vocab[word] for word in c_item["cleaned_body"].split()
+        #     ] for c_item in data_item["context"]
+        # ]
+
+        sentences = [
+            [ vocabulary.get_index(word) for word in sentence ]
+            for sentence in data_item["context"]            
+        ]
+
+        ret["context"] = sentences
+
+        ret["choice_list"] = torch.stack((*[
+            # io.imread(os.path.join(self.root_dir, img)) for img in data_item["choice_list"]
+            torch.load(os.path.join(self.root_dir, img)) if os.path.isfile(os.path.join(self.root_dir, img)) else torch.load(os.path.join(self.alternate_root_dir, img)) for img in data_item["choice_list"]
+        ],))
+
+        ret["question"] = torch.stack((*[
+            # io.imread(os.path.join(self.root_dir, img)) for img in data_item["question"]
+            torch.load(os.path.join(self.root_dir, img)) for img in data_item["question"]
+        ],))
+
+        ret["answer"] = data_item["answer"]
+        ret["wrong"] = 0
+
+        return ret
+
 def batch_collator(device):
     
     def _internal(batch):
@@ -130,6 +228,9 @@ def batch_collator(device):
             "wrongs": wrongs,
             "size": len(batch),
         }
+
+        if "real_answer" in batch[0]:
+            final_batch["real_answer"] = batch[0]["real_answer"]
 
         return final_batch
 

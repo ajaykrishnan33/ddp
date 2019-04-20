@@ -5,7 +5,7 @@ RANDOM_SEED = 1234
 
 np.random.seed(RANDOM_SEED)
 
-MAX_CHOICES = 20
+MAX_CHOICES = 4
 
 train_data = ujson.load(open("recipeqa/train.json", "rb"))
 val_data = ujson.load(open("recipeqa/val.json", "rb"))

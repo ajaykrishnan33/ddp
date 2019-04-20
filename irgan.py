@@ -33,8 +33,9 @@ parser.add_argument('--netD', default='', help="path to netD (to continue traini
 parser.add_argument('--outf', default='.', help='folder to output images and model checkpoints')
 parser.add_argument('--manualSeed', type=int, help='manual seed')
 parser.add_argument('--vgg_pretrained', action='store_true', help='vgg pretrained?', default=False)
-parser.add_argument('--pretrain', action='store_true', help='pretrain?', default=False)
-parser.add_argument('--train', action='store_true', help='train?', default=False)
+# parser.add_argument('--pretrain', action='store_true', help='pretrain?', default=False)
+# parser.add_argument('--train', action='store_true', help='train?', default=False)
+parser.add_argument("--mode", required=True, choices=["pretrain", "train", "test"])
 
 opt = parser.parse_args()
 print(opt)
@@ -69,7 +70,29 @@ val_dataset = dataservices.RecipeQADataset(
 )
 val_dataloader = torch.utils.data.DataLoader(
     val_dataset, batch_size=opt.batchSize,
-    shuffle=True, num_workers=int(opt.workers),
+    shuffle=False, num_workers=int(opt.workers),
+    collate_fn=dataservices.batch_collator(device=device)
+)
+
+testG_dataset = dataservices.RecipeQATestGDataset(
+    "recipeqa/new_val_cleaned.json", 
+    "recipeqa/features/val",
+    "recipeqa/features/train"   
+)
+testG_dataloader = torch.utils.data.DataLoader(
+    testG_dataset, batch_size=opt.batchSize,
+    shuffle=False, num_workers=int(opt.workers),
+    collate_fn=dataservices.batch_collator(device=device)
+)
+
+testD_dataset = dataservices.RecipeQATestDDataset(
+    "recipeqa/new_val_cleaned.json", 
+    "recipeqa/features/val",
+    "recipeqa/features/train"   
+)
+testD_dataloader = torch.utils.data.DataLoader(
+    testD_dataset, batch_size=dataservices.NUM_CHOICES*dataservices.NUM_CHOICES,
+    shuffle=False, num_workers=int(opt.workers),
     collate_fn=dataservices.batch_collator(device=device)
 )
 
@@ -332,10 +355,66 @@ def training():
 
         torch.save(netD.state_dict(), '%s/netD_train_epoch_%d.pth' % (opt.outf, epoch))
 
+def test_netG():
+    netG.apply(weights_init)
+    netG.load_state_dict(torch.load(opt.netG))
+
+    print(netG)
+
+    netG.eval()
+    print("\nTesting netG:")
+    correct_answers = 0
+    for i, batch in tqdm(enumerate(testG_dataloader, 0), total=len(testG_dataloader)):
+        with torch.no_grad():
+            logits, distributions = netG(batch)
+            expected_outputs = torch.tensor(batch["answers"]).to(device)
+            correct_answers += score_gen(distributions, expected_outputs)
+
+    print("Correctly answered/Total Questions:{}/{}".format(correct_answers, len(testG_dataloader)))
+    print("Percentage:{}".format(correct_answers/len(testG_dataloader)*100.0))
+
+    
+
+def test_netD():
+    netD.apply(weights_init)
+    netD.load_state_dict(torch.load(opt.netD))
+
+    print(netD)
+
+    netD.eval()
+    print("\nTesting netD:")
+    correct_answers = 0
+
+    total_qs = len(testD_dataloader)/(dataservices.NUM_CHOICES**2)
+
+    for i, batch in tqdm(enumerate(testD_dataloader, 0), total=len(testD_dataloader)):
+        votes = np.array([0.0]*dataservices.NUM_CHOICES)
+        actual_answer = batch["real_answer"]        
+        with torch.no_grad():
+            logits, probabilities = netD(batch)
+
+            for j, p in enumerate(probabilities):
+                a_id = j//dataservices.NUM_CHOICES
+                votes[a_id] += p
+
+        answer = votes.argmax()
+
+        if answer==actual_answer:
+            correct_answers+=1
+    
+    print("Correctly answered/Total Questions:{}/{}".format(correct_answers, total_qs))
+    print("Percentage:{}".format(correct_answers/total_qs*100.0))
+
+
 if __name__ == "__main__":
     
-    if opt.pretrain:
+    if opt.mode == "pretrain":
         pre_train(True, True)
-    
-    if opt.train:
+    elif opt.mode == "train":
         training()
+    elif opt.mode == "test":
+        test_netG()
+        test_netD()
+    else:
+        print("Error!")
+
