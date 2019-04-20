@@ -176,7 +176,8 @@ def pre_train(train_netD, train_netG):
             for i, batch in tqdm(enumerate(train_dataloader, 0), total=len(train_dataloader)):
                 netD.zero_grad()
                 logits, probabilities = netD(batch)
-                labels = torch.full((batch["size"],), 1).to(device)
+                # labels = torch.full((batch["size"],), 1).to(device)
+                labels = batch["d_answers"].to(device)
 
                 loss = criterionD(logits, labels)
                 loss.backward()

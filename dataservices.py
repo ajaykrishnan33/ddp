@@ -70,8 +70,16 @@ class RecipeQADataset(Dataset):
             torch.load(os.path.join(self.root_dir, img)) for img in data_item["question"]
         ],))
 
-        ret["answer"] = data_item["answer"]
-        ret["wrong"] = a_id
+        p = np.random.rand()
+
+        if p<0.5:
+            ret["answer"] = data_item["answer"]
+            ret["wrong"] = a_id
+            ret["d_answer"] = 1.0
+        else:
+            ret["answer"] = a_id
+            ret["wrong"] = data_item["answer"]
+            ret["d_answer"] = 0.0
 
         return ret
 
@@ -231,6 +239,10 @@ def batch_collator(device):
 
         if "real_answer" in batch[0]:
             final_batch["real_answer"] = batch[0]["real_answer"]
+
+        if "d_answer" in batch[0]:
+            d_answers = [x["d_answer"] for x in batch]
+            final_batch["d_answers"] = torch.tensor(d_answers)
 
         return final_batch
 
