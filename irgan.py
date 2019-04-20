@@ -18,7 +18,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--workers', type=int, help='number of data loading workers', default=0)
 parser.add_argument('--batchSize', type=int, default=64, help='input batch size')
 parser.add_argument('--imageSize', type=int, default=64, help='the height / width of the input image to network')
-parser.add_argument('--num_samples', type=int, default=10, help='number of samples per question')
+parser.add_argument('--num_samples', type=int, default=1, help='number of samples per question')
 parser.add_argument('--pre_niter', type=int, default=10, help='total number of epochs to train for')
 parser.add_argument('--niter', type=int, default=25, help='total number of epochs to train for')
 parser.add_argument('--start_iter', type=int, default=0, help='epoch to start from')
@@ -329,7 +329,8 @@ def training():
                 sample_logits, sample_probs = netD(sample_batch)
                 neg_loss = criterionD(sample_logits, neg_labels)
                 
-                batch_labels = torch.full((batch["size"],), 1).to(device)
+                # batch_labels = torch.full((batch["size"],), 1).to(device)
+                batch_labels = batch["d_answers"].to(device)
                 batch_logits, batch_probs = netD(batch)
                 batch_loss = criterionD(batch_logits, batch_labels)
 
