@@ -366,14 +366,16 @@ def test_netG():
     netG.eval()
     print("\nTesting netG:")
     correct_answers = 0
+    total_qs = 0
     for i, batch in tqdm(enumerate(testG_dataloader, 0), total=len(testG_dataloader)):
         with torch.no_grad():
             logits, distributions = netG(batch)
             expected_outputs = torch.tensor(batch["answers"]).to(device)
             correct_answers += score_gen(distributions, expected_outputs)
+            total_qs += len(batch)
 
-    print("Correctly answered/Total Questions:{}/{}".format(correct_answers, len(testG_dataloader)))
-    print("Percentage:{}".format(correct_answers/len(testG_dataloader)*100.0))
+    print("Correctly answered/Total Questions:{}/{}".format(correct_answers, total_qs))
+    print("Percentage:{}".format(correct_answers/total_qs*100.0))
 
     
 
@@ -387,7 +389,7 @@ def test_netD():
     print("\nTesting netD:")
     correct_answers = 0
 
-    total_qs = len(testD_dataloader)/(dataservices.NUM_CHOICES**2)
+    total_qs = len(testD_dataloader)
 
     for i, batch in tqdm(enumerate(testD_dataloader, 0), total=len(testD_dataloader)):
         votes = np.array([0.0]*dataservices.NUM_CHOICES)
