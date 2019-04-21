@@ -372,7 +372,7 @@ def test_netG():
             logits, distributions = netG(batch)
             expected_outputs = torch.tensor(batch["answers"]).to(device)
             correct_answers += score_gen(distributions, expected_outputs)
-            total_qs += len(batch)
+            total_qs += batch["size"]
 
     print("Correctly answered/Total Questions:{}/{}".format(correct_answers, total_qs))
     print("Percentage:{}".format(correct_answers*1.0/total_qs*100.0))
