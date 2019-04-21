@@ -375,7 +375,7 @@ def test_netG():
             total_qs += len(batch)
 
     print("Correctly answered/Total Questions:{}/{}".format(correct_answers, total_qs))
-    print("Percentage:{}".format(correct_answers/total_qs*100.0))
+    print("Percentage:{}".format(correct_answers*1.0/total_qs*100.0))
 
     
 
@@ -407,7 +407,7 @@ def test_netD():
             correct_answers+=1
     
     print("Correctly answered/Total Questions:{}/{}".format(correct_answers, total_qs))
-    print("Percentage:{}".format(correct_answers/total_qs*100.0))
+    print("Percentage:{}".format(correct_answers*1.0/total_qs*100.0))
 
 
 if __name__ == "__main__":
